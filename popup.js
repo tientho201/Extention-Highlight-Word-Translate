@@ -674,6 +674,11 @@ if (btnTriggerScreenshot) {
       window.close();
     } catch (err) {
       console.error('Screenshot OCR failed:', err);
+      const isMacRuntime = /Mac/i.test(navigator.platform || '') || /Mac/i.test(navigator.userAgent || '');
+      const suffix = isMacRuntime
+        ? '\n\nMacBook: hãy bật Google Chrome tại System Settings → Privacy & Security → Screen & System Audio Recording, rồi mở lại Chrome.'
+        : '';
+      window.alert(`Không thể chụp màn hình. ${err?.message || 'Vui lòng thử lại.'}${suffix}`);
     }
   });
 }

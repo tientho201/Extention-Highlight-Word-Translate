@@ -37,8 +37,9 @@
 * **Dịch câu / đoạn văn**: Nhận diện thông minh ngữ cảnh, dịch mượt mà với hơn **15+ ngôn ngữ phổ biến** (*Tiếng Việt, Tiếng Anh, Tiếng Trung, Tiếng Nhật, Tiếng Hàn, Tiếng Pháp, Tiếng Đức...*).
 
 ### 5. 🔑 Cấu hình OCR API Key riêng (Bảo mật & Không lo nghẽn Quota):
-* Cho phép người dùng tự điền **OCR.space API Key miễn phí** của riêng mình ngay trong Popup (có link 1-click đăng ký nhận key).
-* Mỗi key riêng được cấp **500 lượt gọi OCR/ngày độc lập**, không lo bị dùng chung hay cạn kiệt hạn ngạch khi public extension.
+* Người dùng cần tự điền **OCR.space API Key** của riêng mình trong Popup (có link đăng ký nhận key).
+* API key không được đóng gói cứng trong extension; extension chỉ đọc key đã lưu trong `chrome.storage.local` của người dùng.
+* Hạn mức OCR phụ thuộc chính sách hiện hành của OCR.space; extension không tự cung cấp key dùng chung.
 
 ### 6. 🎨 Trải nghiệm giao diện cao cấp (Catppuccin Mocha Dark Theme):
 * Popup dịch có thể **kéo thả di chuyển (Draggable)** tự do trên trang web.
@@ -75,6 +76,11 @@
 3. **Ghim và sử dụng**:
    * Bấm vào biểu tượng mảnh ghép 🧩 trên thanh công cụ của Chrome $\rightarrow$ Ghim extension **Highlight Word Translate** để mở menu cài đặt bất kỳ lúc nào!
 
+4. **Nếu dùng MacBook và OCR không chụp được màn hình**:
+   * Mở **System Settings $\rightarrow$ Privacy & Security $\rightarrow$ Screen & System Audio Recording**.
+   * Bật quyền cho **Google Chrome**, sau đó thoát hẳn Chrome và mở lại.
+   * Có thể kiểm tra hoặc gán lại phím tắt tại `chrome://extensions/shortcuts`.
+
 ---
 
 ## 🔑 Hướng dẫn lấy OCR API Key miễn phí (Tùy chọn)
@@ -83,7 +89,7 @@
 1. Truy cập trang đăng ký miễn phí của OCR.space: [https://ocr.space/ocrapi/freekey](https://ocr.space/ocrapi/freekey)
 2. Nhập Email và Tên của bạn $\rightarrow$ Nhấn **Register Free API Key**.
 3. Mở Email để lấy mã API Key (dạng `K8xxxxxxxxxxxxx`).
-4. Mở Popup của extension $\rightarrow$ Dán key vào ô **OCR API Key (Tùy chọn)**. Hệ thống sẽ tự động lưu và áp dụng ngay lập tức.
+4. Mở Popup của extension $\rightarrow$ Dán key vào ô **OCR API Key**. Hệ thống sẽ tự động lưu và áp dụng ngay lập tức. Nếu chưa nhập key, các tính năng OCR sẽ yêu cầu cấu hình thay vì dùng key mặc định.
 
 ---
 
@@ -113,7 +119,7 @@ Extension tuân thủ nghiêm ngặt các tiêu chuẩn bảo mật của Chrome
 * `activeTab` & `tabs`: Cho phép chụp ảnh màn hình của tab hiện tại khi người dùng chủ động kích hoạt tính năng OCR.
 * `clipboardWrite`: Hỗ trợ tính năng sao chép 1-click kết quả dịch vào bộ nhớ tạm.
 * `host_permissions` (`<all_urls>`): Cần thiết để hàm chụp ảnh màn hình `captureVisibleTab` hoạt động trên mọi trang web khi nhấn phím tắt.
-* **Không thu thập dữ liệu**: Extension không lưu trữ, không theo dõi và không gửi bất kỳ thông tin cá nhân hay lịch sử duyệt web nào của người dùng về máy chủ bên thứ ba.
+* **Không có máy chủ riêng để lưu lịch sử**: Extension không duy trì máy chủ riêng và không theo dõi lịch sử duyệt web. Tuy nhiên, văn bản người dùng chọn được gửi tới Google Translate để dịch; ảnh vùng chọn được gửi tới OCR.space khi dùng OCR. Người dùng nên xem chính sách riêng tư và điều khoản của các dịch vụ này trước khi sử dụng.
 
 ---
 

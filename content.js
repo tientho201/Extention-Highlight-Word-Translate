@@ -896,6 +896,8 @@ function showOCRResult(ocrText, response) {
   } else {
     currentCopyText = (ocrText ? ocrText + "\n" : "") + translated;
   }
+}
+
 function matchesCustomShortcut(e, shortcut) {
   if (!shortcut) return false;
 

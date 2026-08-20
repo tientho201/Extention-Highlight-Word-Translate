@@ -37,7 +37,7 @@
     "ocr-screenshot": {
       "suggested_key": {
         "default": "Alt+Shift+S",
-        "mac": "Alt+Shift+S"
+        "mac": "Option+Shift+S"
       },
       "description": "Chụp màn hình toàn trang và OCR dịch"
     }

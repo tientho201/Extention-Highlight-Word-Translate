@@ -43,8 +43,8 @@ const SVG_CHECK = [
 
 // ── OCR API ───────────────────────────────────────────────────────────────
 
-const DEFAULT_OCR_API_KEY = 'K86041711488957';
-let ocrApiKey = DEFAULT_OCR_API_KEY;
+// OCR.space key is user-provided and intentionally not bundled in the extension.
+let ocrApiKey = '';
 
 // ── DOM references ────────────────────────────────────────────────────────
 
@@ -74,7 +74,7 @@ let targetLang      = 'vi'; // Loaded from chrome.storage.local on init
   ]);
 
   targetLang = settings.targetLang ?? 'vi';
-  ocrApiKey  = settings.ocrApiKey?.trim() || DEFAULT_OCR_API_KEY;
+  ocrApiKey  = settings.ocrApiKey?.trim() || '';
 
   const isMac = /Mac|iPhone|iPod|iPad/i.test(navigator.userAgent || navigator.platform);
   if (isMac && hintEl) {
@@ -238,6 +238,11 @@ function normRect(x1, y1, x2, y2) {
 
 async function runOCR(sel, mx, my) {
   showLoading(mx, my);
+
+  if (!ocrApiKey) {
+    showError('Chưa cấu hình OCR API Key. Hãy nhập key OCR.space trong Popup.', mx, my);
+    return;
+  }
 
   try {
     // ── 1. Crop the CLEAN screenshot (bgBitmap, no overlay) ────────────────

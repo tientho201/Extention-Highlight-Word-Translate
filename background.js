@@ -22,6 +22,15 @@
 // ============================================================
 
 const GOOGLE_TRANSLATE_BASE = "https://translate.googleapis.com/translate_a/single";
+const IS_MACOS = /Mac/i.test(globalThis.navigator?.userAgent ?? "");
+
+function captureFailureMessage(cause) {
+  const base = cause || "Không thể chụp ảnh màn hình.";
+  if (IS_MACOS) {
+    return `${base} Trên MacBook, hãy bật quyền Google Chrome trong System Settings → Privacy & Security → Screen & System Audio Recording, rồi mở lại Chrome.`;
+  }
+  return base;
+}
 
 // ============================================================
 // Cache
@@ -242,7 +251,7 @@ function captureTab(windowId = null) {
         // Fallback to high quality JPEG
         capture({ format: "jpeg", quality: 95 }, jpegUrl => {
           if (chrome.runtime.lastError || !jpegUrl) {
-            reject(new Error(chrome.runtime.lastError?.message ?? firstError ?? "Không thể chụp ảnh màn hình."));
+            reject(new Error(captureFailureMessage(chrome.runtime.lastError?.message ?? firstError)));
           } else {
             resolve(jpegUrl);
           }
@@ -328,11 +337,14 @@ async function cropImage(dataUrl, logicalRect, viewport) {
 
 // ── OCR.space API ─────────────────────────────────────────────
 
-const DEFAULT_OCR_API_KEY = "K86041711488957";
-
+// OCR.space keys are user-provided and must not be embedded in the extension bundle.
 async function getOCRApiKey() {
   const data = await chrome.storage.local.get("ocrApiKey");
-  return data.ocrApiKey?.trim() || DEFAULT_OCR_API_KEY;
+  const apiKey = data.ocrApiKey?.trim();
+  if (!apiKey) {
+    throw new Error("Chưa cấu hình OCR API Key. Hãy nhập key OCR.space trong Popup.");
+  }
+  return apiKey;
 }
 
 /**
@@ -489,7 +501,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const hasWin = typeof windowId === "number" && windowId >= 0;
             const fn = (opts, cb) => hasWin ? chrome.tabs.captureVisibleTab(windowId, opts, cb) : chrome.tabs.captureVisibleTab(opts, cb);
             fn({ format: "jpeg", quality: 95 }, jpegUrl => {
-              if (chrome.runtime.lastError || !jpegUrl) reject(new Error(chrome.runtime.lastError?.message));
+              if (chrome.runtime.lastError || !jpegUrl) reject(new Error(captureFailureMessage(chrome.runtime.lastError?.message)));
               else resolve(jpegUrl);
             });
           });
