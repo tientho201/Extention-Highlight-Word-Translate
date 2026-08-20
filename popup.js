@@ -113,6 +113,11 @@ chrome.storage.local.get(['translateMode', 'enabled', 'customShortcut', 'targetL
       const parts = presetName.split('+');
       chip.innerHTML = parts.map(p => `<kbd>${formatKeyLabel(p.trim())}</kbd>`).join('+');
     });
+
+    const badgeOcrOverlay = document.getElementById('badge-ocr-overlay');
+    const badgeOcrScreenshot = document.getElementById('badge-ocr-screenshot');
+    if (badgeOcrOverlay) badgeOcrOverlay.textContent = '⌘⇧X';
+    if (badgeOcrScreenshot) badgeOcrScreenshot.textContent = '⌥⇧S';
   }
 
   updateToggles(currentMode);

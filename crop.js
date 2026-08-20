@@ -75,11 +75,21 @@ let targetLang      = 'vi'; // Loaded from chrome.storage.local on init
 
   targetLang = settings.targetLang ?? 'vi';
   ocrApiKey  = settings.ocrApiKey?.trim() || DEFAULT_OCR_API_KEY;
+
+  const isMac = /Mac|iPhone|iPod|iPad/i.test(navigator.userAgent || navigator.platform);
+  if (isMac && hintEl) {
+    hintEl.innerHTML =
+      'Kéo để chọn vùng OCR &nbsp;·&nbsp; ' +
+      '<kbd>⌥⇧S</kbd> hoặc <kbd>ESC</kbd> để đóng';
+  }
+
   const dataUrl = session.limn_ocr_screenshot;
 
   if (!dataUrl) {
     hintEl.textContent =
-      'Lỗi: Không tìm thấy ảnh chụp màn hình. Hãy thử lại (Alt+Shift+S).';
+      isMac
+        ? 'Lỗi: Không tìm thấy ảnh chụp màn hình. Hãy thử lại (⌥+Shift+S).'
+        : 'Lỗi: Không tìm thấy ảnh chụp màn hình. Hãy thử lại (Alt+Shift+S).';
     return;
   }
 
@@ -525,6 +535,6 @@ document.addEventListener('keydown', e => {
   // ESC — close the tab instantly, freeing all memory
   if (e.key === 'Escape') { e.preventDefault(); window.close(); }
 
-  // Alt+Shift+S — same shortcut re-pressed while crop.html is open → close
-  if (e.altKey && e.shiftKey && e.code === 'KeyS') { e.preventDefault(); window.close(); }
+  // Alt+Shift+S, Option+Shift+S, hoặc Cmd+Shift+S — same shortcut re-pressed while crop.html is open → close
+  if ((e.altKey || e.metaKey) && e.shiftKey && e.code === 'KeyS') { e.preventDefault(); window.close(); }
 });

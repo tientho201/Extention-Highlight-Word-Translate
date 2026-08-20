@@ -611,11 +611,13 @@ function activateOCRCapture() {
   ocrCtx = ocrCanvas.getContext("2d");
 
   // Hint bar at the top
+  const isMac = /Mac|iPhone|iPod|iPad/i.test(navigator.userAgent || navigator.platform);
   const hint = document.createElement("div");
   hint.id = "limn-ocr-hint";
   hint.innerHTML =
     "Kéo để chọn vùng dịch &nbsp;·&nbsp; " +
-    "<kbd>Ctrl+Shift+X</kbd> hoặc <kbd>ESC</kbd> để huỷ";
+    (isMac ? "<kbd>⌘+Shift+X</kbd>" : "<kbd>Ctrl+Shift+X</kbd>") +
+    " hoặc <kbd>ESC</kbd> để huỷ";
 
   ocrOverlay.append(ocrCanvas, hint);
   (document.body ?? document.documentElement).appendChild(ocrOverlay);
@@ -899,8 +901,8 @@ document.addEventListener("keydown", e => {
     }
   }
 
-  // 2. Ctrl + Shift + X  →  toggle OCR capture overlay
-  if (e.ctrlKey && e.shiftKey && e.code === "KeyX") {
+  // 2. Ctrl + Shift + X (hoặc Cmd + Shift + X trên Mac) → toggle OCR capture overlay
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyX") {
     e.preventDefault();
     e.stopPropagation();
     if (ocrOverlay) {
