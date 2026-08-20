@@ -98,6 +98,22 @@ body {
   gap: 12px;
 }
 
+.row-clickable {
+  cursor: pointer;
+  padding: 6px 8px;
+  margin: -2px -8px;
+  border-radius: 8px;
+  transition: background 150ms, transform 100ms;
+}
+
+.row-clickable:hover {
+  background: var(--bg-hover);
+}
+
+.row-clickable:active {
+  transform: scale(0.99);
+}
+
 .row-label {
   display: flex;
   flex-direction: column;

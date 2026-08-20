@@ -5,6 +5,7 @@
   "description": "Ultra-low latency text translation + Screen OCR — select text or capture any screen region.",
   "permissions": ["storage", "tabs", "activeTab", "clipboardWrite"],
   "host_permissions": [
+    "<all_urls>",
     "https://translate.googleapis.com/*",
     "https://api.ocr.space/*"
   ],
@@ -36,7 +37,7 @@
     "ocr-screenshot": {
       "suggested_key": {
         "default": "Alt+Shift+S",
-        "mac": "Option+Shift+S"
+        "mac": "Alt+Shift+S"
       },
       "description": "Chụp màn hình toàn trang và OCR dịch"
     }

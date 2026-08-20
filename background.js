@@ -227,12 +227,22 @@ function pageLangToOCRCode(htmlLang) {
  */
 function captureTab(windowId = null) {
   return new Promise((resolve, reject) => {
-    chrome.tabs.captureVisibleTab(windowId, { format: "png" }, dataUrl => {
+    const hasWindowId = typeof windowId === "number" && windowId >= 0;
+    const capture = (options, cb) => {
+      if (hasWindowId) {
+        chrome.tabs.captureVisibleTab(windowId, options, cb);
+      } else {
+        chrome.tabs.captureVisibleTab(options, cb);
+      }
+    };
+
+    capture({ format: "png" }, dataUrl => {
       if (chrome.runtime.lastError || !dataUrl) {
+        const firstError = chrome.runtime.lastError?.message;
         // Fallback to high quality JPEG
-        chrome.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 95 }, jpegUrl => {
+        capture({ format: "jpeg", quality: 95 }, jpegUrl => {
           if (chrome.runtime.lastError || !jpegUrl) {
-            reject(new Error(chrome.runtime.lastError?.message ?? "Không thể chụp ảnh màn hình."));
+            reject(new Error(chrome.runtime.lastError?.message ?? firstError ?? "Không thể chụp ảnh màn hình."));
           } else {
             resolve(jpegUrl);
           }
@@ -466,6 +476,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // keep message channel open for async sendResponse
   }
 
+  // Handle full-tab screenshot trigger from in-page shortcut or popup
+  if (message.type === "TRIGGER_FULLSCREEN_OCR") {
+    const windowId = sender.tab?.windowId ?? null;
+    (async () => {
+      try {
+        let dataUrl = await captureTab(windowId);
+        try {
+          await chrome.storage.session.set({ limn_ocr_screenshot: dataUrl });
+        } catch (_) {
+          dataUrl = await new Promise((resolve, reject) => {
+            const hasWin = typeof windowId === "number" && windowId >= 0;
+            const fn = (opts, cb) => hasWin ? chrome.tabs.captureVisibleTab(windowId, opts, cb) : chrome.tabs.captureVisibleTab(opts, cb);
+            fn({ format: "jpeg", quality: 95 }, jpegUrl => {
+              if (chrome.runtime.lastError || !jpegUrl) reject(new Error(chrome.runtime.lastError?.message));
+              else resolve(jpegUrl);
+            });
+          });
+          await chrome.storage.session.set({ limn_ocr_screenshot: dataUrl });
+        }
+        chrome.tabs.create({ url: chrome.runtime.getURL("crop.html") });
+        sendResponse({ ok: true });
+      } catch (err) {
+        console.error("[Limn] TRIGGER_FULLSCREEN_OCR failed:", err.message);
+        sendResponse({ ok: false, error: err.message });
+      }
+    })();
+
+    return true;
+  }
+
   return false;
 });
 
@@ -477,16 +517,19 @@ chrome.commands.onCommand.addListener(async command => {
   if (command !== "ocr-screenshot") return;
 
   try {
-    let dataUrl = await captureTab(null);
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const windowId = activeTab?.windowId ?? null;
+    let dataUrl = await captureTab(windowId);
 
     // Save to session storage (RAM only — crop.js deletes it right after reading)
     try {
       await chrome.storage.session.set({ limn_ocr_screenshot: dataUrl });
     } catch (storageErr) {
-      // If PNG exceeded storage quota (10MB on 4K), fallback to JPEG
       console.warn("[Limn] Session storage quota hit, retrying with JPEG format...");
       dataUrl = await new Promise((resolve, reject) => {
-        chrome.tabs.captureVisibleTab(null, { format: "jpeg", quality: 95 }, jpegUrl => {
+        const hasWin = typeof windowId === "number" && windowId >= 0;
+        const fn = (opts, cb) => hasWin ? chrome.tabs.captureVisibleTab(windowId, opts, cb) : chrome.tabs.captureVisibleTab(opts, cb);
+        fn({ format: "jpeg", quality: 95 }, jpegUrl => {
           if (chrome.runtime.lastError || !jpegUrl) {
             reject(new Error(chrome.runtime.lastError?.message ?? "JPEG fallback failed"));
           } else {

@@ -902,18 +902,28 @@ document.addEventListener("keydown", e => {
   }
 
   // 2. Ctrl + Shift + X (hoặc Cmd + Shift + X trên Mac) → toggle OCR capture overlay
-  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyX") {
+  const isKeyX = e.code === "KeyX" || e.key === "x" || e.key === "X";
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && isKeyX) {
     e.preventDefault();
     e.stopPropagation();
     if (ocrOverlay) {
       deactivateOCRCapture();
-    } else if (isEnabled) {
+    } else {
       activateOCRCapture();
     }
     return;
   }
 
-  // 3. Escape  →  dismiss OCR overlay (or dismiss tooltip)
+  // 3. Alt + Shift + S (hoặc Option + Shift + S / Cmd + Shift + S trên Mac) → Full screenshot OCR
+  const isKeyS = e.code === "KeyS" || e.key === "s" || e.key === "S";
+  if ((e.altKey || e.metaKey) && e.shiftKey && isKeyS) {
+    e.preventDefault();
+    e.stopPropagation();
+    chrome.runtime.sendMessage({ type: "TRIGGER_FULLSCREEN_OCR" });
+    return;
+  }
+
+  // 4. Escape → dismiss OCR overlay (or dismiss tooltip)
   if (e.key === "Escape") {
     if (ocrOverlay) {
       e.preventDefault();
@@ -924,3 +934,14 @@ document.addEventListener("keydown", e => {
     }
   }
 }, { capture: true });
+
+// Listen for external trigger from popup
+chrome.runtime.onMessage.addListener(msg => {
+  if (msg?.type === "TRIGGER_OCR_OVERLAY") {
+    if (ocrOverlay) {
+      deactivateOCRCapture();
+    } else {
+      activateOCRCapture();
+    }
+  }
+});

@@ -390,3 +390,50 @@ ocrKeyInput.addEventListener('input', () => {
     ocrKeyHint.classList.remove('saved');
   }, 2500);
 });
+
+// ── Direct OCR Triggers on click ──────────────────────────
+
+const rowOcrOverlay    = document.getElementById('row-ocr-overlay');
+const rowOcrScreenshot = document.getElementById('row-ocr-screenshot');
+
+if (rowOcrOverlay) {
+  rowOcrOverlay.addEventListener('click', async () => {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab?.id) {
+        chrome.tabs.sendMessage(tab.id, { type: 'TRIGGER_OCR_OVERLAY' });
+      }
+      window.close();
+    } catch (err) {
+      console.error('Trigger OCR overlay failed:', err);
+    }
+  });
+}
+
+if (rowOcrScreenshot) {
+  rowOcrScreenshot.addEventListener('click', async () => {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab) return;
+      const windowId = tab.windowId ?? null;
+      let dataUrl = await new Promise((resolve, reject) => {
+        const hasWin = typeof windowId === 'number' && windowId >= 0;
+        const capture = (opts, cb) => hasWin ? chrome.tabs.captureVisibleTab(windowId, opts, cb) : chrome.tabs.captureVisibleTab(opts, cb);
+        capture({ format: 'png' }, url => {
+          if (chrome.runtime.lastError || !url) {
+            capture({ format: 'jpeg', quality: 95 }, jUrl => {
+              if (chrome.runtime.lastError || !jUrl) reject(new Error(chrome.runtime.lastError?.message));
+              else resolve(jUrl);
+            });
+          } else resolve(url);
+        });
+      });
+
+      await chrome.storage.session.set({ limn_ocr_screenshot: dataUrl });
+      chrome.tabs.create({ url: chrome.runtime.getURL('crop.html') });
+      window.close();
+    } catch (err) {
+      console.error('Screenshot OCR failed:', err);
+    }
+  });
+}
