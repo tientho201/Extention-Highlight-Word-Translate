@@ -50,20 +50,20 @@
       </label>
     </div>
 
-    <!-- Shortcut Customizer Box -->
-    <div class="shortcut-box" id="shortcut-box">
+    <!-- Shortcut Customizer Box (Text Translate) -->
+    <div class="shortcut-box" id="box-text">
       <div class="shortcut-box-header">
-        <span class="shortcut-box-title">Tùy chỉnh phím tắt dịch:</span>
-        <button type="button" class="btn-text" id="btn-reset-shortcut" title="Khôi phục Alt+T">Mặc định</button>
+        <span class="shortcut-box-title">Phím tắt dịch văn bản:</span>
+        <button type="button" class="btn-text" data-reset="text" title="Khôi phục Alt+T">Mặc định</button>
       </div>
-      <div class="shortcut-recorder" id="shortcut-recorder" tabindex="0" role="button" aria-label="Bấm để đổi phím tắt" title="Bấm vào đây rồi nhấn tổ hợp phím mong muốn">
-        <div class="shortcut-keys" id="shortcut-display">
+      <div class="shortcut-recorder" data-recorder="text" tabindex="0" role="button" aria-label="Bấm để đổi phím tắt dịch" title="Bấm vào đây rồi nhấn tổ hợp phím mong muốn">
+        <div class="shortcut-keys" id="display-text">
           <kbd>Alt</kbd><span>+</span><kbd>T</kbd>
         </div>
-        <span class="shortcut-hint" id="shortcut-hint">Bấm để đổi phím</span>
+        <span class="shortcut-hint" id="hint-text">Bấm để đổi</span>
       </div>
-      <div class="shortcut-recording-msg" id="shortcut-recording-msg">
-        Đang lắng nghe... Nhấn tổ hợp phím (vd: <strong>Ctrl+Alt</strong>, <strong>Ctrl+Win</strong>, <strong>Alt+T</strong>, <strong>Ctrl+Q</strong>) hoặc <strong>ESC</strong> để huỷ.
+      <div class="shortcut-recording-msg" id="msg-text">
+        Đang lắng nghe... Nhấn tổ hợp phím (vd: <strong>Ctrl+Alt</strong>, <strong>Ctrl+Win</strong>, <strong>Alt+T</strong>) hoặc <strong>ESC</strong> để huỷ.
       </div>
       <!-- Quick Presets -->
       <div class="shortcut-presets">
@@ -88,22 +88,56 @@
     <!-- Section: Screen OCR -->
     <div class="section-title">OCR chụp màn hình</div>
 
-    <!-- OCR shortcut — overlay (Ctrl+Shift+X) -->
-    <div class="row row-clickable" id="row-ocr-overlay" title="Bấm để kích hoạt kéo chọn vùng OCR trực tiếp">
-      <div class="row-label">
-        <span>Screen OCR Translate</span>
-        <span>Kéo chọn vùng dịch trực tiếp</span>
+    <!-- 1. Screen OCR Overlay Card -->
+    <div class="ocr-card">
+      <div class="ocr-card-header">
+        <div class="ocr-card-title-group">
+          <span class="ocr-card-title">Screen OCR Translate</span>
+          <span class="ocr-card-sub">Kéo chọn vùng dịch trực tiếp</span>
+        </div>
+        <button type="button" class="btn-action" id="btn-trigger-ocr-overlay" title="Kích hoạt kéo chọn vùng OCR ngay">⚡ Bật ngay</button>
       </div>
-      <span class="shortcut-badge" id="badge-ocr-overlay">Ctrl⇧X</span>
+      <div class="shortcut-box">
+        <div class="shortcut-box-header">
+          <span class="shortcut-box-title">Phím tắt:</span>
+          <button type="button" class="btn-text" data-reset="ocrOverlay" title="Khôi phục mặc định">Mặc định</button>
+        </div>
+        <div class="shortcut-recorder" data-recorder="ocrOverlay" tabindex="0" role="button" aria-label="Bấm để đổi phím tắt Screen OCR" title="Bấm vào đây rồi nhấn tổ hợp phím">
+          <div class="shortcut-keys" id="display-ocr-overlay">
+            <kbd>Ctrl</kbd><span>+</span><kbd>Shift</kbd><span>+</span><kbd>X</kbd>
+          </div>
+          <span class="shortcut-hint" id="hint-ocrOverlay">Bấm để đổi</span>
+        </div>
+        <div class="shortcut-recording-msg" id="msg-ocr-overlay">
+          Đang lắng nghe... Nhấn tổ hợp phím hoặc <strong>ESC</strong> để huỷ.
+        </div>
+      </div>
     </div>
 
-    <!-- OCR shortcut — full screenshot (Alt+Shift+S) -->
-    <div class="row row-clickable" id="row-ocr-screenshot" title="Bấm để chụp ảnh toàn màn hình và crop">
-      <div class="row-label">
-        <span>Screenshot OCR Translate</span>
-        <span>Mở tab chụp toàn màn hình</span>
+    <!-- 2. Screenshot OCR Full Tab Card -->
+    <div class="ocr-card">
+      <div class="ocr-card-header">
+        <div class="ocr-card-title-group">
+          <span class="ocr-card-title">Screenshot OCR Translate</span>
+          <span class="ocr-card-sub">Mở tab chụp toàn màn hình</span>
+        </div>
+        <button type="button" class="btn-action" id="btn-trigger-ocr-screenshot" title="Chụp toàn màn hình và crop ngay">⚡ Chụp ngay</button>
       </div>
-      <span class="shortcut-badge" id="badge-ocr-screenshot">Alt⇧S</span>
+      <div class="shortcut-box">
+        <div class="shortcut-box-header">
+          <span class="shortcut-box-title">Phím tắt:</span>
+          <button type="button" class="btn-text" data-reset="ocrScreenshot" title="Khôi phục mặc định">Mặc định</button>
+        </div>
+        <div class="shortcut-recorder" data-recorder="ocrScreenshot" tabindex="0" role="button" aria-label="Bấm để đổi phím tắt Screenshot OCR" title="Bấm vào đây rồi nhấn tổ hợp phím">
+          <div class="shortcut-keys" id="display-ocr-screenshot">
+            <kbd>Alt</kbd><span>+</span><kbd>Shift</kbd><span>+</span><kbd>S</kbd>
+          </div>
+          <span class="shortcut-hint" id="hint-ocrScreenshot">Bấm để đổi</span>
+        </div>
+        <div class="shortcut-recording-msg" id="msg-ocr-screenshot">
+          Đang lắng nghe... Nhấn tổ hợp phím hoặc <strong>ESC</strong> để huỷ.
+        </div>
+      </div>
     </div>
 
     <!-- OCR API Key Field -->

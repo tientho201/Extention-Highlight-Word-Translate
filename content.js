@@ -19,8 +19,8 @@
 const L1_CACHE    = new Map();
 const MAX_L1_SIZE = 200;
 
-let translateMode   = "auto"; // "auto" | "shortcut" | "off"
-let customShortcut  = {
+const DEFAULT_TEXT_SHORTCUT = {
+  isModifierOnly: false,
   altKey: true,
   ctrlKey: false,
   shiftKey: false,
@@ -29,6 +29,34 @@ let customShortcut  = {
   key: "T",
   label: "Alt+T",
 };
+
+const DEFAULT_OCR_OVERLAY_SHORTCUT = {
+  isModifierOnly: false,
+  altKey: false,
+  ctrlKey: true,
+  shiftKey: true,
+  metaKey: false,
+  code: "KeyX",
+  key: "X",
+  label: "Ctrl+Shift+X",
+};
+
+const DEFAULT_OCR_SCREENSHOT_SHORTCUT = {
+  isModifierOnly: false,
+  altKey: true,
+  ctrlKey: false,
+  shiftKey: true,
+  metaKey: false,
+  code: "KeyS",
+  key: "S",
+  label: "Alt+Shift+S",
+};
+
+let translateMode          = "auto"; // "auto" | "shortcut" | "off"
+let customShortcut         = DEFAULT_TEXT_SHORTCUT;
+let ocrOverlayShortcut    = DEFAULT_OCR_OVERLAY_SHORTCUT;
+let ocrScreenshotShortcut = DEFAULT_OCR_SCREENSHOT_SHORTCUT;
+
 let isEnabled        = true;
 let targetLang       = "vi";
 let tooltip          = null;
@@ -49,7 +77,10 @@ let ocrDragging  = false;
 // Init — load settings
 // ============================================================
 
-chrome.storage.local.get(["translateMode", "enabled", "customShortcut", "targetLang"], data => {
+chrome.storage.local.get([
+  "translateMode", "enabled", "targetLang",
+  "customShortcut", "ocrOverlayShortcut", "ocrScreenshotShortcut"
+], data => {
   if (data.translateMode) {
     translateMode = data.translateMode;
   } else if (data.enabled === false) {
@@ -57,9 +88,11 @@ chrome.storage.local.get(["translateMode", "enabled", "customShortcut", "targetL
   } else {
     translateMode = "auto";
   }
-  isEnabled       = (translateMode !== "off");
-  customShortcut  = data.customShortcut ?? customShortcut;
-  targetLang      = data.targetLang     ?? "vi";
+  isEnabled             = (translateMode !== "off");
+  customShortcut        = data.customShortcut         ?? DEFAULT_TEXT_SHORTCUT;
+  ocrOverlayShortcut   = data.ocrOverlayShortcut    ?? DEFAULT_OCR_OVERLAY_SHORTCUT;
+  ocrScreenshotShortcut= data.ocrScreenshotShortcut ?? DEFAULT_OCR_SCREENSHOT_SHORTCUT;
+  targetLang            = data.targetLang             ?? "vi";
 });
 
 chrome.storage.onChanged.addListener(changes => {
@@ -71,8 +104,10 @@ chrome.storage.onChanged.addListener(changes => {
     if (!isEnabled) translateMode = "off";
     else if (translateMode === "off") translateMode = "auto";
   }
-  if (changes.customShortcut !== undefined) customShortcut = changes.customShortcut.newValue;
-  if (changes.targetLang     !== undefined) targetLang     = changes.targetLang.newValue;
+  if (changes.customShortcut         !== undefined) customShortcut         = changes.customShortcut.newValue;
+  if (changes.ocrOverlayShortcut    !== undefined) ocrOverlayShortcut    = changes.ocrOverlayShortcut.newValue;
+  if (changes.ocrScreenshotShortcut !== undefined) ocrScreenshotShortcut = changes.ocrScreenshotShortcut.newValue;
+  if (changes.targetLang             !== undefined) targetLang             = changes.targetLang.newValue;
 });
 
 // ============================================================
@@ -901,9 +936,8 @@ document.addEventListener("keydown", e => {
     }
   }
 
-  // 2. Ctrl + Shift + X (hoặc Cmd + Shift + X trên Mac) → toggle OCR capture overlay
-  const isKeyX = e.code === "KeyX" || e.key === "x" || e.key === "X";
-  if ((e.ctrlKey || e.metaKey) && e.shiftKey && isKeyX) {
+  // 2. Screen OCR Overlay (tùy chỉnh bằng ocrOverlayShortcut, mặc định Ctrl+Shift+X)
+  if (matchesCustomShortcut(e, ocrOverlayShortcut)) {
     e.preventDefault();
     e.stopPropagation();
     if (ocrOverlay) {
@@ -914,9 +948,8 @@ document.addEventListener("keydown", e => {
     return;
   }
 
-  // 3. Alt + Shift + S (hoặc Option + Shift + S / Cmd + Shift + S trên Mac) → Full screenshot OCR
-  const isKeyS = e.code === "KeyS" || e.key === "s" || e.key === "S";
-  if ((e.altKey || e.metaKey) && e.shiftKey && isKeyS) {
+  // 3. Full screenshot OCR (tùy chỉnh bằng ocrScreenshotShortcut, mặc định Alt+Shift+S)
+  if (matchesCustomShortcut(e, ocrScreenshotShortcut)) {
     e.preventDefault();
     e.stopPropagation();
     chrome.runtime.sendMessage({ type: "TRIGGER_FULLSCREEN_OCR" });

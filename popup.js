@@ -3,23 +3,66 @@
  *
  * Responsibilities:
  *  - Manage 2 mutually exclusive translation modes: Auto Translate vs Shortcut Translate.
- *  - Interactive shortcut recorder supporting both normal combos (Alt+T, Ctrl+Q)
- *    and modifier-only combos (Ctrl+Alt, Ctrl+Win, Ctrl+Shift, Alt+Shift).
+ *  - Interactive shortcut recorders for 3 features:
+ *      1. Text Selection Translate (default: Alt+T)
+ *      2. Screen OCR Overlay       (default: Ctrl+Shift+X)
+ *      3. Screenshot OCR Full Tab  (default: Alt+Shift+S)
+ *  - Duplicate / Conflict validation:
+ *      If a shortcut conflicts with an already assigned shortcut, display a red error message
+ *      and automatically revert to the feature's default shortcut.
  *  - Quick preset buttons for instant 1-click shortcut assignment.
+ *  - 1-click direct action buttons to trigger OCR immediately.
+ *  - OCR API Key management.
  *  - Persist all configuration to chrome.storage.local.
  */
 
 'use strict';
 
-const DEFAULT_SHORTCUT = {
-  isModifierOnly: false,
-  altKey: true,
-  ctrlKey: false,
-  shiftKey: false,
-  metaKey: false,
-  code: 'KeyT',
-  key: 'T',
-  label: 'Alt+T',
+// ── Default Shortcut Definitions ──────────────────────────
+
+const DEFAULTS = {
+  text: {
+    isModifierOnly: false,
+    altKey: true,
+    ctrlKey: false,
+    shiftKey: false,
+    metaKey: false,
+    code: 'KeyT',
+    key: 'T',
+    label: 'Alt+T',
+  },
+  ocrOverlay: {
+    isModifierOnly: false,
+    altKey: false,
+    ctrlKey: true,
+    shiftKey: true,
+    metaKey: false,
+    code: 'KeyX',
+    key: 'X',
+    label: 'Ctrl+Shift+X',
+  },
+  ocrScreenshot: {
+    isModifierOnly: false,
+    altKey: true,
+    ctrlKey: false,
+    shiftKey: true,
+    metaKey: false,
+    code: 'KeyS',
+    key: 'S',
+    label: 'Alt+Shift+S',
+  },
+};
+
+const STORAGE_KEYS = {
+  text: 'customShortcut',
+  ocrOverlay: 'ocrOverlayShortcut',
+  ocrScreenshot: 'ocrScreenshotShortcut',
+};
+
+const FEATURE_NAMES = {
+  text: 'Dịch văn bản',
+  ocrOverlay: 'Screen OCR',
+  ocrScreenshot: 'Screenshot OCR',
 };
 
 const PRESET_MAP = {
@@ -65,15 +108,38 @@ const PRESET_MAP = {
   },
 };
 
-// ── DOM elements ──────────────────────────────────────────
+const isMac = /Mac|iPhone|iPod|iPad/i.test(navigator.userAgent || navigator.platform);
+
+function formatKeyLabel(name) {
+  if (!isMac) return name;
+  const map = {
+    'Win': 'Cmd ⌘',
+    'Meta': 'Cmd ⌘',
+    'Alt': 'Option ⌥',
+    'Ctrl': 'Ctrl ⌃',
+    'Shift': 'Shift ⇧',
+  };
+  return map[name] ?? name;
+}
+
+// ── State ─────────────────────────────────────────────────
+
+const shortcuts = {
+  text: { ...DEFAULTS.text },
+  ocrOverlay: { ...DEFAULTS.ocrOverlay },
+  ocrScreenshot: { ...DEFAULTS.ocrScreenshot },
+};
+
+let currentMode            = 'auto'; // 'auto' | 'shortcut' | 'off'
+let activeRecordingTarget  = null;   // 'text' | 'ocrOverlay' | 'ocrScreenshot' | null
+let heldModifiers          = { ctrlKey: false, altKey: false, shiftKey: false, metaKey: false };
+let msgTimeouts            = {};
+let ocrHintTimeout         = null;
+
+// ── DOM Elements ──────────────────────────────────────────
 
 const toggleAuto          = document.getElementById('toggle-auto');
 const toggleShortcut      = document.getElementById('toggle-shortcut');
-const shortcutRecorder    = document.getElementById('shortcut-recorder');
-const shortcutDisplay     = document.getElementById('shortcut-display');
-const shortcutHint        = document.getElementById('shortcut-hint');
-const shortcutRecordingMsg= document.getElementById('shortcut-recording-msg');
-const btnResetShortcut    = document.getElementById('btn-reset-shortcut');
 const selectEl            = document.getElementById('lang-select');
 const ocrKeyInput         = document.getElementById('ocr-api-key');
 const ocrKeyHint          = document.getElementById('ocr-key-hint');
@@ -81,18 +147,45 @@ const badgeEl             = document.getElementById('status-badge');
 const statusTxt           = document.getElementById('status-text');
 const footerTip           = document.getElementById('footer-tip');
 const presetChips         = document.querySelectorAll('.preset-chip');
+const recorders           = document.querySelectorAll('.shortcut-recorder');
+const resetBtns           = document.querySelectorAll('.btn-text[data-reset]');
+const btnTriggerOverlay   = document.getElementById('btn-trigger-ocr-overlay');
+const btnTriggerScreenshot= document.getElementById('btn-trigger-ocr-screenshot');
 
-let currentMode     = 'auto'; // 'auto' | 'shortcut' | 'off'
-let currentShortcut = DEFAULT_SHORTCUT;
-let isRecording     = false;
-let ocrHintTimeout  = null;
+// ── Shortcut Equality & Conflict Checking ─────────────────
 
-// Temp tracker for modifier keys while recording
-let heldModifiers = { ctrlKey: false, altKey: false, shiftKey: false, metaKey: false };
+function areShortcutsEqual(s1, s2) {
+  if (!s1 || !s2) return false;
+  if (Boolean(s1.altKey)   !== Boolean(s2.altKey))   return false;
+  if (Boolean(s1.ctrlKey)  !== Boolean(s2.ctrlKey))  return false;
+  if (Boolean(s1.shiftKey) !== Boolean(s2.shiftKey)) return false;
+  if (Boolean(s1.metaKey)  !== Boolean(s2.metaKey))  return false;
+
+  if (s1.isModifierOnly || s2.isModifierOnly) {
+    return Boolean(s1.isModifierOnly) === Boolean(s2.isModifierOnly);
+  }
+
+  if (s1.code && s2.code && s1.code === s2.code) return true;
+  if (s1.key && s2.key && s1.key.toUpperCase() === s2.key.toUpperCase()) return true;
+  return false;
+}
+
+function findConflictingTarget(target, newShortcut) {
+  const otherTargets = ['text', 'ocrOverlay', 'ocrScreenshot'].filter(t => t !== target);
+  for (const other of otherTargets) {
+    if (areShortcutsEqual(newShortcut, shortcuts[other])) {
+      return other;
+    }
+  }
+  return null;
+}
 
 // ── Initialize & Load State ───────────────────────────────
 
-chrome.storage.local.get(['translateMode', 'enabled', 'customShortcut', 'targetLang', 'ocrApiKey'], data => {
+chrome.storage.local.get([
+  'translateMode', 'enabled', 'targetLang', 'ocrApiKey',
+  'customShortcut', 'ocrOverlayShortcut', 'ocrScreenshotShortcut',
+], data => {
   if (data.translateMode) {
     currentMode = data.translateMode;
   } else if (data.enabled === false) {
@@ -101,11 +194,12 @@ chrome.storage.local.get(['translateMode', 'enabled', 'customShortcut', 'targetL
     currentMode = 'auto';
   }
 
-  currentShortcut = data.customShortcut ?? DEFAULT_SHORTCUT;
-  selectEl.value   = data.targetLang ?? 'vi';
-  if (data.ocrApiKey) {
-    ocrKeyInput.value = data.ocrApiKey;
-  }
+  shortcuts.text          = data.customShortcut         ?? { ...DEFAULTS.text };
+  shortcuts.ocrOverlay    = data.ocrOverlayShortcut    ?? { ...DEFAULTS.ocrOverlay };
+  shortcuts.ocrScreenshot = data.ocrScreenshotShortcut ?? { ...DEFAULTS.ocrScreenshot };
+
+  selectEl.value = data.targetLang ?? 'vi';
+  if (data.ocrApiKey) ocrKeyInput.value = data.ocrApiKey;
 
   if (isMac) {
     presetChips.forEach(chip => {
@@ -113,19 +207,14 @@ chrome.storage.local.get(['translateMode', 'enabled', 'customShortcut', 'targetL
       const parts = presetName.split('+');
       chip.innerHTML = parts.map(p => `<kbd>${formatKeyLabel(p.trim())}</kbd>`).join('+');
     });
-
-    const badgeOcrOverlay = document.getElementById('badge-ocr-overlay');
-    const badgeOcrScreenshot = document.getElementById('badge-ocr-screenshot');
-    if (badgeOcrOverlay) badgeOcrOverlay.textContent = '⌘⇧X';
-    if (badgeOcrScreenshot) badgeOcrScreenshot.textContent = '⌥⇧S';
   }
 
   updateToggles(currentMode);
-  renderShortcut(currentShortcut);
-  updateBadge(currentMode, currentShortcut);
+  renderAllShortcuts();
+  updateBadge(currentMode, shortcuts.text);
 });
 
-// ── Mode Toggle Handlers (Mutually Exclusive) ─────────────
+// ── Mode Toggle Handlers ──────────────────────────────────
 
 toggleAuto.addEventListener('change', () => {
   if (toggleAuto.checked) {
@@ -152,7 +241,7 @@ function saveMode(mode) {
     translateMode: mode,
     enabled: mode !== 'off',
   });
-  updateBadge(mode, currentShortcut);
+  updateBadge(mode, shortcuts.text);
 }
 
 function updateToggles(mode) {
@@ -160,25 +249,12 @@ function updateToggles(mode) {
   toggleShortcut.checked = (mode === 'shortcut');
 }
 
-const isMac = /Mac|iPhone|iPod|iPad/i.test(navigator.userAgent || navigator.platform);
-
-function formatKeyLabel(name) {
-  if (!isMac) return name;
-  const map = {
-    'Win': 'Cmd ⌘',
-    'Alt': 'Option ⌥',
-    'Ctrl': 'Ctrl ⌃',
-    'Shift': 'Shift ⇧',
-  };
-  return map[name] ?? name;
-}
-
 // ── Badge & UI Text Updates ───────────────────────────────
 
 function updateBadge(mode, shortcut) {
   badgeEl.classList.remove('active-auto', 'active-shortcut');
 
-  const displayLabel = shortcut.label
+  const displayLabel = shortcut?.label
     ? shortcut.label.split('+').map(p => formatKeyLabel(p.trim())).join('+')
     : (isMac ? 'Option ⌥+T' : 'Alt+T');
 
@@ -198,12 +274,29 @@ function updateBadge(mode, shortcut) {
 
 // ── Shortcut Display & Rendering ──────────────────────────
 
-function renderShortcut(shortcut) {
-  const parts = shortcut.label ? shortcut.label.split('+') : ['Alt', 'T'];
-  shortcutDisplay.innerHTML = parts.map(p => `<kbd>${formatKeyLabel(p.trim())}</kbd>`).join('<span>+</span>');
+function getElementSuffix(target) {
+  if (target === 'text') return 'text';
+  if (target === 'ocrOverlay') return 'ocr-overlay';
+  return 'ocr-screenshot';
 }
 
-// ── Preset Chips ──────────────────────────────────────────
+function renderShortcutDisplay(target, shortcut) {
+  const suffix = getElementSuffix(target);
+  const displayEl = document.getElementById(`display-${suffix}`);
+  if (!displayEl) return;
+
+  const label = shortcut?.label || DEFAULTS[target].label;
+  const parts = label.split('+');
+  displayEl.innerHTML = parts.map(p => `<kbd>${formatKeyLabel(p.trim())}</kbd>`).join('<span>+</span>');
+}
+
+function renderAllShortcuts() {
+  renderShortcutDisplay('text', shortcuts.text);
+  renderShortcutDisplay('ocrOverlay', shortcuts.ocrOverlay);
+  renderShortcutDisplay('ocrScreenshot', shortcuts.ocrScreenshot);
+}
+
+// ── Preset Chips (for Text translation) ───────────────────
 
 presetChips.forEach(chip => {
   chip.addEventListener('click', e => {
@@ -212,61 +305,135 @@ presetChips.forEach(chip => {
     if (PRESET_MAP[presetName]) {
       stopRecording();
       const newShortcut = PRESET_MAP[presetName];
-      currentShortcut = newShortcut;
-      chrome.storage.local.set({ customShortcut: newShortcut });
-      renderShortcut(newShortcut);
-      updateBadge(currentMode, newShortcut);
+      applyOrValidateShortcut('text', newShortcut);
     }
   });
 });
 
-// ── Shortcut Recording Logic ──────────────────────────────
+// ── Shortcut Recorders (Generic for all 3 targets) ────────
 
-shortcutRecorder.addEventListener('click', () => {
-  if (!isRecording) {
-    startRecording();
-  }
+recorders.forEach(rec => {
+  rec.addEventListener('click', e => {
+    e.stopPropagation();
+    const target = rec.dataset.recorder;
+    if (activeRecordingTarget === target) {
+      stopRecording();
+    } else {
+      startRecording(target);
+    }
+  });
 });
 
-btnResetShortcut.addEventListener('click', e => {
-  e.stopPropagation();
+resetBtns.forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const target = btn.dataset.reset;
+    stopRecording();
+    const def = { ...DEFAULTS[target] };
+    shortcuts[target] = def;
+    const storeKey = STORAGE_KEYS[target];
+    chrome.storage.local.set({ [storeKey]: def });
+    renderShortcutDisplay(target, def);
+    if (target === 'text') updateBadge(currentMode, def);
+    showStatusMessage(target, 'success', `✓ Đã khôi phục về mặc định [${def.label}]`);
+  });
+});
+
+function showStatusMessage(target, type, text) {
+  const suffix = getElementSuffix(target);
+  const msgEl = document.getElementById(`msg-${suffix}`);
+  if (!msgEl) return;
+
+  if (msgTimeouts[target]) clearTimeout(msgTimeouts[target]);
+
+  msgEl.className = `shortcut-recording-msg ${type}`;
+  msgEl.innerHTML = text;
+
+  msgTimeouts[target] = setTimeout(() => {
+    msgEl.className = 'shortcut-recording-msg';
+    msgEl.innerHTML = `Đang lắng nghe... Nhấn tổ hợp phím hoặc <strong>ESC</strong> để huỷ.`;
+  }, 3500);
+}
+
+function startRecording(target) {
   stopRecording();
-  currentShortcut = DEFAULT_SHORTCUT;
-  chrome.storage.local.set({ customShortcut: DEFAULT_SHORTCUT });
-  renderShortcut(DEFAULT_SHORTCUT);
-  updateBadge(currentMode, DEFAULT_SHORTCUT);
-});
-
-function startRecording() {
-  isRecording = true;
+  activeRecordingTarget = target;
   heldModifiers = { ctrlKey: false, altKey: false, shiftKey: false, metaKey: false };
-  shortcutRecorder.classList.add('recording');
-  shortcutRecordingMsg.classList.add('active');
-  shortcutHint.textContent = 'Đang chờ phím...';
-  shortcutDisplay.innerHTML = '<span style="color: var(--purple); font-weight: 600;">Nhấn tổ hợp phím</span>';
+
+  const suffix = getElementSuffix(target);
+  const recEl = document.querySelector(`.shortcut-recorder[data-recorder="${target}"]`);
+  const msgEl = document.getElementById(`msg-${suffix}`);
+  const hintEl = document.getElementById(`hint-${target}`);
+  const displayEl = document.getElementById(`display-${suffix}`);
+
+  if (recEl) recEl.classList.add('recording');
+  if (msgEl) {
+    if (msgTimeouts[target]) clearTimeout(msgTimeouts[target]);
+    msgEl.className = 'shortcut-recording-msg active';
+    msgEl.innerHTML = 'Đang lắng nghe... Nhấn tổ hợp phím hoặc <strong>ESC</strong> để huỷ.';
+  }
+  if (hintEl) hintEl.textContent = 'Đang chờ phím...';
+  if (displayEl) displayEl.innerHTML = '<span style="color: var(--purple); font-weight: 600;">Nhấn tổ hợp phím</span>';
 }
 
 function stopRecording() {
-  if (!isRecording) return;
-  isRecording = false;
-  shortcutRecorder.classList.remove('recording');
-  shortcutRecordingMsg.classList.remove('active');
-  shortcutHint.textContent = 'Bấm để đổi phím';
-  renderShortcut(currentShortcut);
+  if (!activeRecordingTarget) return;
+  const target = activeRecordingTarget;
+  activeRecordingTarget = null;
+
+  const suffix = getElementSuffix(target);
+  const recEl = document.querySelector(`.shortcut-recorder[data-recorder="${target}"]`);
+  const hintEl = document.getElementById(`hint-${target}`);
+
+  if (recEl) recEl.classList.remove('recording');
+  if (hintEl) hintEl.textContent = 'Bấm để đổi';
+
+  renderShortcutDisplay(target, shortcuts[target]);
 }
 
-function saveRecordedShortcut(shortcut) {
-  currentShortcut = shortcut;
-  chrome.storage.local.set({ customShortcut: shortcut });
-  stopRecording();
-  updateBadge(currentMode, currentShortcut);
+function applyOrValidateShortcut(target, newShortcut) {
+  const conflict = findConflictingTarget(target, newShortcut);
+
+  if (conflict) {
+    // Conflict detected: Revert to default and display RED error message
+    const defaultShortcut = { ...DEFAULTS[target] };
+    shortcuts[target] = defaultShortcut;
+    const storeKey = STORAGE_KEYS[target];
+    chrome.storage.local.set({ [storeKey]: defaultShortcut });
+
+    stopRecording();
+    renderShortcutDisplay(target, defaultShortcut);
+    if (target === 'text') updateBadge(currentMode, defaultShortcut);
+
+    const conflictName = FEATURE_NAMES[conflict] || conflict;
+    showStatusMessage(
+      target,
+      'error',
+      `⚠️ Trùng phím với <strong>${conflictName}</strong> (${shortcuts[conflict].label})! Tự động khôi phục về [${defaultShortcut.label}].`
+    );
+  } else {
+    // Success: Save new shortcut
+    shortcuts[target] = newShortcut;
+    const storeKey = STORAGE_KEYS[target];
+    chrome.storage.local.set({ [storeKey]: newShortcut });
+
+    stopRecording();
+    renderShortcutDisplay(target, newShortcut);
+    if (target === 'text') updateBadge(currentMode, newShortcut);
+
+    showStatusMessage(target, 'success', `✓ Đã lưu phím tắt mới: [${newShortcut.label}]`);
+  }
 }
+
+// ── Global Keyboard Event Listeners for Recording ─────────
 
 document.addEventListener('keydown', e => {
-  if (!isRecording) return;
+  if (!activeRecordingTarget) return;
 
   e.preventDefault();
   e.stopPropagation();
+
+  const target = activeRecordingTarget;
 
   // Escape cancels recording
   if (e.key === 'Escape') {
@@ -290,14 +457,16 @@ document.addEventListener('keydown', e => {
   if (heldModifiers.shiftKey) modParts.push('Shift');
   if (heldModifiers.metaKey)  modParts.push('Win');
 
+  const suffix = getElementSuffix(target);
+  const displayEl = document.getElementById(`display-${suffix}`);
+  const hintEl = document.getElementById(`hint-${target}`);
+
   if (isModifierOnly) {
-    // If 2 or more modifiers are pressed together (e.g. Ctrl + Alt or Ctrl + Win),
-    // show them in the display
     if (modParts.length >= 2) {
-      shortcutDisplay.innerHTML = modParts.map(p => `<kbd>${p}</kbd>`).join('<span>+</span>');
-      shortcutHint.textContent = 'Thả phím để lưu hoặc bấm thêm chữ...';
+      if (displayEl) displayEl.innerHTML = modParts.map(p => `<kbd>${formatKeyLabel(p)}</kbd>`).join('<span>+</span>');
+      if (hintEl) hintEl.textContent = 'Thả phím để lưu hoặc bấm thêm chữ...';
     } else {
-      shortcutDisplay.innerHTML = modParts.map(p => `<kbd>${p}</kbd>`).join('<span>+</span>') + '<span>+...</span>';
+      if (displayEl) displayEl.innerHTML = modParts.map(p => `<kbd>${formatKeyLabel(p)}</kbd>`).join('<span>+</span>') + '<span>+...</span>';
     }
     return;
   }
@@ -307,7 +476,7 @@ document.addEventListener('keydown', e => {
   const isFunctionKey = /^F[1-9]|F1[0-2]$/.test(e.key);
 
   if (!hasModifier && !isFunctionKey) {
-    shortcutHint.textContent = 'Cần phím bổ trợ (Alt/Ctrl/Shift)!';
+    if (hintEl) hintEl.textContent = 'Cần phím bổ trợ (Alt/Ctrl/Shift)!';
     return;
   }
 
@@ -330,23 +499,22 @@ document.addEventListener('keydown', e => {
     label,
   };
 
-  saveRecordedShortcut(newShortcut);
+  applyOrValidateShortcut(target, newShortcut);
 });
 
-// Handle keyup to capture modifier-only combos when released
 document.addEventListener('keyup', e => {
-  if (!isRecording) return;
+  if (!activeRecordingTarget) return;
 
   const isModifierOnly = ['Control', 'Alt', 'Shift', 'Meta', 'OS'].includes(e.key);
   if (!isModifierOnly) return;
 
+  const target = activeRecordingTarget;
   const modParts = [];
   if (heldModifiers.ctrlKey)  modParts.push('Ctrl');
   if (heldModifiers.altKey)   modParts.push('Alt');
   if (heldModifiers.shiftKey) modParts.push('Shift');
   if (heldModifiers.metaKey)  modParts.push('Win');
 
-  // If user pressed 2+ modifiers (e.g. Ctrl + Alt or Ctrl + Win) and released them
   if (modParts.length >= 2) {
     const label = modParts.join('+');
     const newShortcut = {
@@ -359,45 +527,22 @@ document.addEventListener('keyup', e => {
       key:      null,
       label,
     };
-    saveRecordedShortcut(newShortcut);
+    applyOrValidateShortcut(target, newShortcut);
   }
 });
 
 // Click outside stops recording
 document.addEventListener('click', e => {
-  if (isRecording && !shortcutRecorder.contains(e.target) && e.target !== btnResetShortcut) {
+  if (activeRecordingTarget && !e.target.closest('.shortcut-recorder') && !e.target.closest('.btn-text')) {
     stopRecording();
   }
 });
 
-// ── Language Selector ─────────────────────────────────────
+// ── Direct 1-Click Action Buttons ─────────────────────────
 
-selectEl.addEventListener('change', () => {
-  chrome.storage.local.set({ targetLang: selectEl.value });
-});
-
-// ── OCR API Key Input ─────────────────────────────────────
-
-ocrKeyInput.addEventListener('input', () => {
-  const key = ocrKeyInput.value.trim();
-  chrome.storage.local.set({ ocrApiKey: key });
-
-  ocrKeyHint.textContent = key ? '✓ Đã lưu API Key riêng thành công!' : 'Đã xoá key riêng (sử dụng key mặc định)';
-  ocrKeyHint.classList.add('saved');
-  clearTimeout(ocrHintTimeout);
-  ocrHintTimeout = setTimeout(() => {
-    ocrKeyHint.textContent = 'Dùng key riêng để có 500 lượt OCR/ngày không lo nghẽn';
-    ocrKeyHint.classList.remove('saved');
-  }, 2500);
-});
-
-// ── Direct OCR Triggers on click ──────────────────────────
-
-const rowOcrOverlay    = document.getElementById('row-ocr-overlay');
-const rowOcrScreenshot = document.getElementById('row-ocr-screenshot');
-
-if (rowOcrOverlay) {
-  rowOcrOverlay.addEventListener('click', async () => {
+if (btnTriggerOverlay) {
+  btnTriggerOverlay.addEventListener('click', async e => {
+    e.stopPropagation();
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab?.id) {
@@ -410,8 +555,9 @@ if (rowOcrOverlay) {
   });
 }
 
-if (rowOcrScreenshot) {
-  rowOcrScreenshot.addEventListener('click', async () => {
+if (btnTriggerScreenshot) {
+  btnTriggerScreenshot.addEventListener('click', async e => {
+    e.stopPropagation();
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab) return;
@@ -437,3 +583,24 @@ if (rowOcrScreenshot) {
     }
   });
 }
+
+// ── Language Selector ─────────────────────────────────────
+
+selectEl.addEventListener('change', () => {
+  chrome.storage.local.set({ targetLang: selectEl.value });
+});
+
+// ── OCR API Key Input ─────────────────────────────────────
+
+ocrKeyInput.addEventListener('input', () => {
+  const key = ocrKeyInput.value.trim();
+  chrome.storage.local.set({ ocrApiKey: key });
+
+  ocrKeyHint.textContent = key ? '✓ Đã lưu API Key riêng thành công!' : 'Đã xoá key riêng (sử dụng key mặc định)';
+  ocrKeyHint.classList.add('saved');
+  clearTimeout(ocrHintTimeout);
+  ocrHintTimeout = setTimeout(() => {
+    ocrKeyHint.textContent = 'Dùng key riêng để có 500 lượt OCR/ngày không lo nghẽn';
+    ocrKeyHint.classList.remove('saved');
+  }, 2500);
+});

@@ -11,28 +11,32 @@
 
 ## ✨ Tính năng nổi bật
 
-### 1. 🎯 2 Chế độ dịch văn bản bôi đen linh hoạt (Chỉ bật 1 trong 2):
+### 1. 🎯 2 Chế độ dịch văn bản bôi đen (Chỉ bật 1 trong 2):
 * **Tự động dịch (Auto Translate)**: Khi bôi đen văn bản $\rightarrow$ vừa thả chuột là popup dịch xuất hiện tức thì ngay cạnh con trỏ chuột.
 * **Dịch theo phím tắt (Shortcut Translate)**: Khi bôi đen chữ sẽ **không** tự hiện popup (tránh gây phiền khi đang đọc tài liệu). Chỉ khi bạn nhấn phím tắt (ví dụ: `Alt+T`, `Ctrl+Alt`, `Ctrl+Win`...) thì popup dịch mới xuất hiện ngay dưới đoạn văn bản được chọn.
 * **Tắt cả 2**: Vô hiệu hóa tính năng dịch bôi đen khi không cần dùng.
 
-### 2. ⌨️ Tùy chỉnh phím tắt dịch cực mạnh (Custom Shortcut Recorder):
-* **Hỗ trợ đa dạng tổ hợp phím**:
-  * Phím bổ trợ + Ký tự: `Alt+T`, `Ctrl+Q`, `Alt+D`, `Alt+Space`, `Ctrl+Shift+Z`...
-  * **Phím bổ trợ thuần túy (Không cần ký tự)**: `Ctrl+Alt`, `Ctrl+Win`, `Alt+Shift`, `Ctrl+Shift`...
-* **Tự động nhận diện hệ điều hành**: Tự động chuyển đổi giao diện và ký hiệu chuẩn giữa **Windows** (`Ctrl`, `Alt`, `Win`) và **macOS / MacBook** (`Control ⌃`, `Option ⌥`, `Cmd ⌘`, `Shift ⇧`).
+### 2. ⌨️ Tùy chỉnh phím tắt toàn diện cho cả 3 tính năng:
+* **Hỗ trợ gán phím độc lập cho 3 tính năng**:
+  1. **Dịch văn bản bôi đen** *(Mặc định: `Alt+T` / `Option+T`)*.
+  2. **Screen OCR Overlay** *(Mặc định: `Ctrl+Shift+X` / `Cmd+Shift+X`)*.
+  3. **Screenshot OCR Full Tab** *(Mặc định: `Alt+Shift+S` / `Option+Shift+S`)*.
+* **Hỗ trợ phím bổ trợ thuần túy (Không cần phím chữ)**: `Ctrl+Alt`, `Ctrl+Win`, `Alt+Shift`, `Ctrl+Shift`, `Control+Option`...
+* **🛡️ Cơ chế chống trùng phím thông minh (Anti-Conflict)**: Tự động phát hiện nếu bạn đặt phím tắt trùng nhau giữa các tính năng $\rightarrow$ lập tức báo dòng đỏ cảnh báo và khôi phục về phím mặc định an toàn.
+* **Tự động nhận diện macOS**: Tự động chuyển đổi giao diện và ký hiệu chuẩn giữa **Windows** (`Ctrl`, `Alt`, `Win`) và **macOS / MacBook** (`Control ⌃`, `Option ⌥`, `Cmd ⌘`, `Shift ⇧`).
 * **Nút gợi ý nhanh 1-Click**: Có sẵn 4 phím tắt phổ biến trong Popup để chọn nhanh chỉ với 1 click.
 
-### 3. 📸 2 Công cụ OCR chụp màn hình & Dịch hình ảnh:
-* **Screen OCR Overlay (`Ctrl + Shift + X`)**: Kéo chọn trực tiếp vùng màn hình ngay trên trang web đang xem $\rightarrow$ tự động nhận diện chữ (OCR) và dịch tức thì.
-* **Screenshot OCR Tool (`Alt + Shift + S`)**: Mở tab chụp toàn màn hình độ phân giải cao, hỗ trợ vẽ crop box tùy chỉnh và bộ lọc ảnh sắc nét để nhận diện chính xác nhất.
-* **Hỗ trợ đa ngôn ngữ OCR**: Tự động fallback song ngữ (Latin `eng` và CJK `chs`/`cht`/`jpn`/`kor`).
+### 3. 📸 2 Công cụ OCR chụp màn hình & Dịch ảnh siêu tốc:
+* **Screen OCR Overlay**: Kéo chọn trực tiếp vùng màn hình ngay trên trang web đang xem $\rightarrow$ tự động nhận diện chữ (OCR) và dịch tức thì.
+* **Screenshot OCR Full Tab**: Mở tab chụp toàn màn hình độ phân giải cao, hỗ trợ vẽ crop box tùy chỉnh và bộ lọc ảnh sắc nét để nhận diện chính xác nhất.
+* **⚡ Nút kích hoạt 1-Click từ Popup**: Bạn có thể bấm trực tiếp nút **"⚡ Bật ngay"** hoặc **"⚡ Chụp ngay"** trong Popup để quét OCR mà không bắt buộc phải nhớ phím tắt.
+* **Tối ưu hóa Retina Display**: Tự động nhận diện tỷ lệ điểm ảnh vật lý (2x/3x DPR) trên MacBook Air, MacBook Pro để cắt ảnh siêu sắc nét và nhận diện chữ chính xác tuyệt đối.
 
 ### 4. 📚 Từ điển thông minh & Tra từ chi tiết:
 * **Tra từ đơn**: Tự động hiển thị phiên âm chuẩn (Pinyin / Phonetic), loại từ (*Noun, Verb, Adjective...*), và danh sách tất cả các nét nghĩa chi tiết.
 * **Dịch câu / đoạn văn**: Nhận diện thông minh ngữ cảnh, dịch mượt mà với hơn **15+ ngôn ngữ phổ biến** (*Tiếng Việt, Tiếng Anh, Tiếng Trung, Tiếng Nhật, Tiếng Hàn, Tiếng Pháp, Tiếng Đức...*).
 
-### 5. 🔑 Cấu hình OCR API Key riêng (An toàn & Không lo nghẽn Quota):
+### 5. 🔑 Cấu hình OCR API Key riêng (Bảo mật & Không lo nghẽn Quota):
 * Cho phép người dùng tự điền **OCR.space API Key miễn phí** của riêng mình ngay trong Popup (có link 1-click đăng ký nhận key).
 * Mỗi key riêng được cấp **500 lượt gọi OCR/ngày độc lập**, không lo bị dùng chung hay cạn kiệt hạn ngạch khi public extension.
 
@@ -45,12 +49,12 @@
 
 ## ⌨️ Bảng phím tắt mặc định
 
-| Tính năng | Windows / Linux | macOS / MacBook | Mô tả |
-| :--- | :---: | :---: | :--- |
-| **Dịch chữ bôi đen** *(Khi bật mode Phím tắt)* | `Alt + T` *(hoặc `Ctrl + Alt`)* | `Option ⌥ + T` *(hoặc `Control ⌃ + Option ⌥`)* | Bôi đen chữ rồi nhấn phím để hiện popup dịch |
-| **OCR chọn vùng màn hình** | `Ctrl + Shift + X` | `Control ⌃ + Shift ⇧ + X` | Bật lớp phủ overlay để quét chữ trên ảnh/video |
-| **OCR chụp toàn màn hình** | `Alt + Shift + S` | `Option ⌥ + Shift ⇧ + S` | Mở tab chụp full màn hình để crop & dịch |
-| **Đóng Popup / Hủy OCR** | `Escape` | `Escape` | Tắt nhanh popup hoặc thoát chế độ OCR |
+| Tính năng | Windows / Linux | macOS / MacBook | Kích hoạt 1-Click | Mô tả |
+| :--- | :---: | :---: | :---: | :--- |
+| **Dịch chữ bôi đen** *(Khi bật mode Phím tắt)* | `Alt + T` *(hoặc `Ctrl + Alt`)* | `Option ⌥ + T` *(hoặc `Control ⌃ + Option ⌥`)* | — | Bôi đen chữ rồi nhấn phím để hiện popup dịch |
+| **Screen OCR Overlay** | `Ctrl + Shift + X` | `Cmd ⌘ + Shift ⇧ + X` | Nút **"⚡ Bật ngay"** | Bật lớp phủ overlay để quét chữ trên ảnh/video |
+| **Screenshot OCR Full Tab** | `Alt + Shift + S` | `Option ⌥ + Shift ⇧ + S` | Nút **"⚡ Chụp ngay"** | Mở tab chụp full màn hình để crop & dịch |
+| **Đóng Popup / Hủy OCR** | `Escape` | `Escape` | Nút **"✕"** | Tắt nhanh popup hoặc thoát chế độ OCR |
 
 ---
 
@@ -89,13 +93,13 @@
 Highlight-Word-Translate/
 ├── manifest.json        # File cấu hình Extension Manifest V3
 ├── background.js        # Service Worker xử lý Google GTX API Router, L2 Cache, OCR Dispatcher
-├── content.js           # Content script điều khiển popup tooltip, bắt bôi đen chuột & phím tắt
+├── content.js           # Content script điều khiển popup tooltip, bắt bôi đen chuột & 3 phím tắt
 ├── content.css          # Giao diện Scoped CSS cho popup tooltip và OCR overlay trên web
 ├── crop.html            # Giao diện trang chụp & cắt ảnh màn hình chất lượng cao
 ├── crop.js              # Xử lý canvas crop 2D, scale pixel ratio, OCR filter & kết quả dịch
-├── popup.html           # Giao diện menu cài đặt extension (Toggles, Custom Shortcut, OCR Key)
-├── popup.css            # Styling giao diện Popup (Catppuccin Theme, Kbd badges, animation)
-├── popup.js             # Logic quản lý trạng thái, recorder phím tắt và lưu trữ cấu hình
+├── popup.html           # Giao diện menu cài đặt (Toggles, 3 Custom Shortcut Recorders, OCR Key)
+├── popup.css            # Styling giao diện Popup (Catppuccin Theme, Kbd badges, Error shakes)
+├── popup.js             # Logic quản lý 3 phím tắt, chống trùng phím, và lưu trữ cấu hình
 ├── icons/               # Bộ icon ứng dụng (16x16, 48x48, 128x128)
 └── README.md            # Tài liệu hướng dẫn sử dụng dự án
 ```
@@ -105,9 +109,10 @@ Highlight-Word-Translate/
 ## 🔒 Quyền hạn & Bảo mật (Permissions & Privacy)
 
 Extension tuân thủ nghiêm ngặt các tiêu chuẩn bảo mật của Chrome Manifest V3:
-* `storage`: Lưu trữ cài đặt người dùng (ngôn ngữ đích, chế độ dịch, phím tắt tùy chỉnh) cục bộ trên máy.
+* `storage`: Lưu trữ cài đặt người dùng (ngôn ngữ đích, chế độ dịch, 3 phím tắt tùy chỉnh) cục bộ trên máy.
 * `activeTab` & `tabs`: Cho phép chụp ảnh màn hình của tab hiện tại khi người dùng chủ động kích hoạt tính năng OCR.
 * `clipboardWrite`: Hỗ trợ tính năng sao chép 1-click kết quả dịch vào bộ nhớ tạm.
+* `host_permissions` (`<all_urls>`): Cần thiết để hàm chụp ảnh màn hình `captureVisibleTab` hoạt động trên mọi trang web khi nhấn phím tắt.
 * **Không thu thập dữ liệu**: Extension không lưu trữ, không theo dõi và không gửi bất kỳ thông tin cá nhân hay lịch sử duyệt web nào của người dùng về máy chủ bên thứ ba.
 
 ---

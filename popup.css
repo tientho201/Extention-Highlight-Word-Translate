@@ -298,6 +298,26 @@ body {
   display: block;
 }
 
+.shortcut-recording-msg.error {
+  display: block;
+  color: var(--error) !important;
+  font-weight: 600;
+  animation: shake 0.35s ease;
+}
+
+.shortcut-recording-msg.success {
+  display: block;
+  color: var(--green) !important;
+  font-weight: 600;
+  animation: fade-in 0.2s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
 @keyframes pulse-glow {
   0%, 100% { opacity: 0.85; }
   50% { opacity: 1; }
@@ -359,6 +379,73 @@ body {
 }
 
 .preset-chip:active {
+  transform: translateY(0);
+}
+
+/* ── OCR Feature Cards ───────────────────────────────── */
+
+.ocr-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 200ms;
+}
+
+.ocr-card:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.ocr-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ocr-card-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ocr-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ocr-card-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.btn-action {
+  background: var(--accent-dim);
+  border: 1px solid rgba(137, 180, 250, 0.3);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 150ms, transform 100ms, border-color 150ms;
+}
+
+.btn-action:hover {
+  background: rgba(137, 180, 250, 0.25);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.btn-action:active {
   transform: translateY(0);
 }
 
