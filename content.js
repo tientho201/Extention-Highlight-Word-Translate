@@ -92,11 +92,31 @@ chrome.storage.local.get([
   } else {
     translateMode = "auto";
   }
-  isEnabled             = (translateMode !== "off");
-  customShortcut        = data.customShortcut         ?? DEFAULT_TEXT_SHORTCUT;
-  ocrOverlayShortcut   = data.ocrOverlayShortcut    ?? DEFAULT_OCR_OVERLAY_SHORTCUT;
-  ocrScreenshotShortcut= data.ocrScreenshotShortcut ?? DEFAULT_OCR_SCREENSHOT_SHORTCUT;
-  targetLang            = data.targetLang             ?? "vi";
+  isEnabled = (translateMode !== "off");
+
+  if (isMac) {
+    if (!data.ocrOverlayShortcut || data.ocrOverlayShortcut.label === "Ctrl+Shift+X") {
+      ocrOverlayShortcut = DEFAULT_OCR_OVERLAY_SHORTCUT;
+    } else {
+      ocrOverlayShortcut = data.ocrOverlayShortcut;
+    }
+    if (!data.customShortcut || data.customShortcut.label === "Alt+T") {
+      customShortcut = DEFAULT_TEXT_SHORTCUT;
+    } else {
+      customShortcut = data.customShortcut;
+    }
+    if (!data.ocrScreenshotShortcut || data.ocrScreenshotShortcut.label === "Alt+Shift+S") {
+      ocrScreenshotShortcut = DEFAULT_OCR_SCREENSHOT_SHORTCUT;
+    } else {
+      ocrScreenshotShortcut = data.ocrScreenshotShortcut;
+    }
+  } else {
+    customShortcut        = data.customShortcut         ?? DEFAULT_TEXT_SHORTCUT;
+    ocrOverlayShortcut   = data.ocrOverlayShortcut    ?? DEFAULT_OCR_OVERLAY_SHORTCUT;
+    ocrScreenshotShortcut= data.ocrScreenshotShortcut ?? DEFAULT_OCR_SCREENSHOT_SHORTCUT;
+  }
+
+  targetLang = data.targetLang ?? "vi";
 });
 
 chrome.storage.onChanged.addListener(changes => {

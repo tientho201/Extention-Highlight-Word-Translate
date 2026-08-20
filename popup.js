@@ -26,18 +26,21 @@ const isMac = /Mac/i.test(navigator.platform || '') ||
               /Mac/i.test(navigator.userAgentData?.platform || '');
 
 function formatKeyLabel(name) {
+  if (!name) return '';
   if (!isMac) return name;
+  const clean = name.replace(/[⌘⌥⌃⇧\s]/g, '').trim();
   const map = {
     'Win': 'Cmd ⌘',
     'Meta': 'Cmd ⌘',
     'Cmd': 'Cmd ⌘',
+    'Command': 'Cmd ⌘',
     'Alt': 'Option ⌥',
     'Option': 'Option ⌥',
-    'Ctrl': 'Ctrl ⌃',
-    'Control': 'Ctrl ⌃',
+    'Ctrl': 'Control ⌃',
+    'Control': 'Control ⌃',
     'Shift': 'Shift ⇧',
   };
-  return map[name] ?? name;
+  return map[clean] ?? name;
 }
 
 function getModifierParts(held) {
@@ -45,7 +48,7 @@ function getModifierParts(held) {
   if (isMac) {
     if (held.metaKey)  parts.push('Cmd');
     if (held.altKey)   parts.push('Option');
-    if (held.ctrlKey)  parts.push('Ctrl');
+    if (held.ctrlKey)  parts.push('Control');
     if (held.shiftKey) parts.push('Shift');
   } else {
     if (held.ctrlKey)  parts.push('Ctrl');
@@ -259,9 +262,26 @@ chrome.storage.local.get([
     currentMode = 'auto';
   }
 
+  // Load or migrate shortcuts
   shortcuts.text          = data.customShortcut         ?? { ...DEFAULTS.text };
   shortcuts.ocrOverlay    = data.ocrOverlayShortcut    ?? { ...DEFAULTS.ocrOverlay };
   shortcuts.ocrScreenshot = data.ocrScreenshotShortcut ?? { ...DEFAULTS.ocrScreenshot };
+
+  if (isMac) {
+    // If previously saved Windows defaults exist in Mac storage, normalize to Mac defaults
+    if (!data.ocrOverlayShortcut || data.ocrOverlayShortcut.label === 'Ctrl+Shift+X') {
+      shortcuts.ocrOverlay = { ...DEFAULTS.ocrOverlay };
+      chrome.storage.local.set({ ocrOverlayShortcut: DEFAULTS.ocrOverlay });
+    }
+    if (!data.customShortcut || data.customShortcut.label === 'Alt+T') {
+      shortcuts.text = { ...DEFAULTS.text };
+      chrome.storage.local.set({ customShortcut: DEFAULTS.text });
+    }
+    if (!data.ocrScreenshotShortcut || data.ocrScreenshotShortcut.label === 'Alt+Shift+S') {
+      shortcuts.ocrScreenshot = { ...DEFAULTS.ocrScreenshot };
+      chrome.storage.local.set({ ocrScreenshotShortcut: DEFAULTS.ocrScreenshot });
+    }
+  }
 
   selectEl.value = data.targetLang ?? 'vi';
   if (data.ocrApiKey) ocrKeyInput.value = data.ocrApiKey;
