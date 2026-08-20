@@ -19,7 +19,17 @@
 const L1_CACHE    = new Map();
 const MAX_L1_SIZE = 200;
 
-let isEnabled        = false;
+let translateMode   = "auto"; // "auto" | "shortcut" | "off"
+let customShortcut  = {
+  altKey: true,
+  ctrlKey: false,
+  shiftKey: false,
+  metaKey: false,
+  code: "KeyT",
+  key: "T",
+  label: "Alt+T",
+};
+let isEnabled        = true;
 let targetLang       = "vi";
 let tooltip          = null;
 let pendingRequestId = 0;
@@ -39,14 +49,30 @@ let ocrDragging  = false;
 // Init — load settings
 // ============================================================
 
-chrome.storage.local.get(["enabled", "targetLang"], data => {
-  isEnabled  = data.enabled    ?? false;
-  targetLang = data.targetLang ?? "vi";
+chrome.storage.local.get(["translateMode", "enabled", "customShortcut", "targetLang"], data => {
+  if (data.translateMode) {
+    translateMode = data.translateMode;
+  } else if (data.enabled === false) {
+    translateMode = "off";
+  } else {
+    translateMode = "auto";
+  }
+  isEnabled       = (translateMode !== "off");
+  customShortcut  = data.customShortcut ?? customShortcut;
+  targetLang      = data.targetLang     ?? "vi";
 });
 
 chrome.storage.onChanged.addListener(changes => {
-  if (changes.enabled   !== undefined) isEnabled  = changes.enabled.newValue;
-  if (changes.targetLang !== undefined) targetLang = changes.targetLang.newValue;
+  if (changes.translateMode !== undefined) {
+    translateMode = changes.translateMode.newValue;
+    isEnabled     = (translateMode !== "off");
+  } else if (changes.enabled !== undefined) {
+    isEnabled = changes.enabled.newValue;
+    if (!isEnabled) translateMode = "off";
+    else if (translateMode === "off") translateMode = "auto";
+  }
+  if (changes.customShortcut !== undefined) customShortcut = changes.customShortcut.newValue;
+  if (changes.targetLang     !== undefined) targetLang     = changes.targetLang.newValue;
 });
 
 // ============================================================
@@ -494,18 +520,29 @@ document.addEventListener("mouseup", e => {
   // OCR rubber-band in progress
   if (ocrDragging) return;
 
-  if (!isEnabled) return;
+  if (translateMode !== "auto") return;
   if (tooltip && tooltip.contains(e.target)) return;
 
   const selection = window.getSelection();
   // If selection starts inside tooltip, skip
   if (tooltip && tooltip.contains(selection?.anchorNode)) return;
 
-  const text = selection?.toString().trim();
+  const rawText = selection?.toString().trim();
 
-  if (!text || text.length < 1) {
+  if (!rawText || rawText.length < 1) {
     hideTooltip();
     return;
+  }
+
+  // If selecting a single word with surrounding punctuation (e.g. "apple.", "(world)"),
+  // strip punctuation for dictionary matching while preserving sentences/phrases
+  const words = rawText.split(/\s+/);
+  let text = rawText;
+  if (words.length === 1) {
+    const cleanWord = rawText.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+    if (cleanWord.length > 0) {
+      text = cleanWord;
+    }
   }
 
   // If tooltip was open before mouse down and user merely clicked outside
@@ -550,6 +587,13 @@ let ocrCtx     = null;
 let ocrStartX  = 0;
 let ocrStartY  = 0;
 
+function ocrOnResize() {
+  if (!ocrCanvas) return;
+  ocrCanvas.width  = window.innerWidth;
+  ocrCanvas.height = window.innerHeight;
+  drawOverlayFrame(null);
+}
+
 // ── Overlay lifecycle ────────────────────────────────────────
 
 function activateOCRCapture() {
@@ -582,10 +626,12 @@ function activateOCRCapture() {
   ocrOverlay.addEventListener("mousedown", ocrOnMouseDown, { capture: true });
   ocrOverlay.addEventListener("mousemove", ocrOnMouseMove, { passive: true });
   ocrOverlay.addEventListener("mouseup",   ocrOnMouseUp,   { capture: true });
+  window.addEventListener("resize", ocrOnResize);
 }
 
 function deactivateOCRCapture() {
   if (!ocrOverlay) return;
+  window.removeEventListener("resize", ocrOnResize);
   ocrOverlay.removeEventListener("mousedown", ocrOnMouseDown, { capture: true });
   ocrOverlay.removeEventListener("mousemove", ocrOnMouseMove);
   ocrOverlay.removeEventListener("mouseup",   ocrOnMouseUp,   { capture: true });
@@ -792,10 +838,68 @@ function showOCRResult(ocrText, response) {
   }
 }
 
+function matchesCustomShortcut(e, shortcut) {
+  if (!shortcut) return false;
+
+  const altNow   = Boolean(e.altKey   || e.key === "Alt");
+  const ctrlNow  = Boolean(e.ctrlKey  || e.key === "Control");
+  const shiftNow = Boolean(e.shiftKey || e.key === "Shift");
+  const metaNow  = Boolean(e.metaKey  || e.key === "Meta" || e.key === "OS");
+
+  if (Boolean(shortcut.altKey)   !== altNow)   return false;
+  if (Boolean(shortcut.ctrlKey)  !== ctrlNow)  return false;
+  if (Boolean(shortcut.shiftKey) !== shiftNow) return false;
+  if (Boolean(shortcut.metaKey)  !== metaNow)  return false;
+
+  // If this is a modifier-only shortcut (e.g. Ctrl+Alt or Ctrl+Win)
+  if (shortcut.isModifierOnly) {
+    const modifierKeys = ["Control", "Alt", "Shift", "Meta", "OS"];
+    return modifierKeys.includes(e.key);
+  }
+
+  // Normal combo with key
+  if (shortcut.code && e.code === shortcut.code) return true;
+  if (shortcut.key && e.key.toUpperCase() === shortcut.key.toUpperCase()) return true;
+  return false;
+}
+
 // ── Keyboard shortcuts ────────────────────────────────────────
 
 document.addEventListener("keydown", e => {
-  // Ctrl + Shift + X  →  toggle OCR capture overlay
+  // 1. Custom shortcut for translating selected text (active in "shortcut" or "auto" mode)
+  if (translateMode !== "off" && matchesCustomShortcut(e, customShortcut)) {
+    const selection = window.getSelection();
+    const rawText = selection?.toString().trim();
+    if (rawText && rawText.length > 0) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Determine position near selection
+      let posX = window.innerWidth / 2;
+      let posY = window.innerHeight / 2;
+
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        if (rect.width > 0 || rect.height > 0) {
+          posX = rect.left;
+          posY = rect.bottom;
+        }
+      }
+
+      const words = rawText.split(/\s+/);
+      let text = rawText;
+      if (words.length === 1) {
+        const cleanWord = rawText.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+        if (cleanWord.length > 0) text = cleanWord;
+      }
+
+      handleTranslation(text, posX, posY);
+      return;
+    }
+  }
+
+  // 2. Ctrl + Shift + X  →  toggle OCR capture overlay
   if (e.ctrlKey && e.shiftKey && e.code === "KeyX") {
     e.preventDefault();
     e.stopPropagation();
@@ -807,7 +911,7 @@ document.addEventListener("keydown", e => {
     return;
   }
 
-  // Escape  →  dismiss OCR overlay (or dismiss tooltip)
+  // 3. Escape  →  dismiss OCR overlay (or dismiss tooltip)
   if (e.key === "Escape") {
     if (ocrOverlay) {
       e.preventDefault();

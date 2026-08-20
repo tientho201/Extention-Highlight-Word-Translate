@@ -166,6 +166,21 @@
   color:      var(--limn-text) !important;
 }
 
+/* Prevent host-page CSS resets (like svg { width: 100% }) from distorting icons */
+#limn-translate-tooltip svg {
+  all: unset !important;
+  display: block !important;
+  width: 13px !important;
+  height: 13px !important;
+  min-width: 13px !important;
+  min-height: 13px !important;
+  max-width: 13px !important;
+  max-height: 13px !important;
+  stroke: currentColor !important;
+  fill: none !important;
+  flex-shrink: 0 !important;
+}
+
 /* Copied — success feedback */
 #limn-translate-tooltip .limn-copy--done {
   color:      var(--limn-green) !important;

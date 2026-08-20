@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -13,50 +13,95 @@
     <div class="header-icon">🌐</div>
     <div>
       <div class="header-title">Highlight Translate</div>
-      <div class="header-sub">Select text on any page to translate</div>
+      <div class="header-sub">Dịch văn bản bôi đen & OCR màn hình</div>
     </div>
   </div>
 
   <div class="body">
 
-    <!-- Enable / Disable toggle -->
+    <!-- Section: Translation Modes -->
+    <div class="section-title">Chế độ dịch văn bản</div>
+
+    <!-- Toggle 1: Auto Translate -->
     <div class="row">
       <div class="row-label">
-        <span>Auto Translate</span>
-        <span>Translate on text selection</span>
+        <span>Tự động dịch</span>
+        <span>Hiện popup ngay khi thả chuột bôi đen</span>
       </div>
-      <label class="toggle" aria-label="Enable auto translate">
-        <input type="checkbox" id="toggle-enabled" />
+      <label class="toggle" aria-label="Bật tự động dịch">
+        <input type="checkbox" id="toggle-auto" />
         <div class="toggle-track">
           <div class="toggle-thumb"></div>
         </div>
       </label>
     </div>
 
+    <!-- Toggle 2: Shortcut Translate -->
+    <div class="row">
+      <div class="row-label">
+        <span>Dịch theo phím tắt</span>
+        <span>Bôi đen rồi bấm phím tắt để hiện popup</span>
+      </div>
+      <label class="toggle" aria-label="Bật dịch theo phím tắt">
+        <input type="checkbox" id="toggle-shortcut" />
+        <div class="toggle-track">
+          <div class="toggle-thumb"></div>
+        </div>
+      </label>
+    </div>
+
+    <!-- Shortcut Customizer Box -->
+    <div class="shortcut-box" id="shortcut-box">
+      <div class="shortcut-box-header">
+        <span class="shortcut-box-title">Tùy chỉnh phím tắt dịch:</span>
+        <button type="button" class="btn-text" id="btn-reset-shortcut" title="Khôi phục Alt+T">Mặc định</button>
+      </div>
+      <div class="shortcut-recorder" id="shortcut-recorder" tabindex="0" role="button" aria-label="Bấm để đổi phím tắt" title="Bấm vào đây rồi nhấn tổ hợp phím mong muốn">
+        <div class="shortcut-keys" id="shortcut-display">
+          <kbd>Alt</kbd><span>+</span><kbd>T</kbd>
+        </div>
+        <span class="shortcut-hint" id="shortcut-hint">Bấm để đổi phím</span>
+      </div>
+      <div class="shortcut-recording-msg" id="shortcut-recording-msg">
+        Đang lắng nghe... Nhấn tổ hợp phím (vd: <strong>Ctrl+Alt</strong>, <strong>Ctrl+Win</strong>, <strong>Alt+T</strong>, <strong>Ctrl+Q</strong>) hoặc <strong>ESC</strong> để huỷ.
+      </div>
+      <!-- Quick Presets -->
+      <div class="shortcut-presets">
+        <span class="presets-label">Gợi ý nhanh:</span>
+        <div class="presets-list">
+          <button type="button" class="preset-chip" data-preset="Ctrl+Alt"><kbd>Ctrl</kbd>+<kbd>Alt</kbd></button>
+          <button type="button" class="preset-chip" data-preset="Ctrl+Win"><kbd>Ctrl</kbd>+<kbd>Win</kbd></button>
+          <button type="button" class="preset-chip" data-preset="Alt+T"><kbd>Alt</kbd>+<kbd>T</kbd></button>
+          <button type="button" class="preset-chip" data-preset="Ctrl+Q"><kbd>Ctrl</kbd>+<kbd>Q</kbd></button>
+        </div>
+      </div>
+    </div>
+
     <!-- Status badge -->
     <div class="status-badge" id="status-badge">
       <div class="status-dot"></div>
-      <span id="status-text">Disabled — toggle on to activate</span>
+      <span id="status-text">Đang tải...</span>
     </div>
 
     <div class="divider"></div>
+
+    <!-- Section: Screen OCR -->
+    <div class="section-title">OCR chụp màn hình</div>
 
     <!-- OCR shortcut — overlay (Ctrl+Shift+X) -->
     <div class="row">
       <div class="row-label">
         <span>Screen OCR Translate</span>
-        <span>Press <strong>Ctrl+Shift+X</strong> on any page</span>
+        <span>Kéo chọn vùng dịch trực tiếp</span>
       </div>
       <span class="shortcut-badge">Ctrl⇧X</span>
     </div>
-
-    <div class="divider"></div>
 
     <!-- OCR shortcut — full screenshot (Alt+Shift+S) -->
     <div class="row">
       <div class="row-label">
         <span>Screenshot OCR Translate</span>
-        <span>Press <strong>Alt+Shift+S</strong> — opens crop tab</span>
+        <span>Mở tab chụp toàn màn hình</span>
       </div>
       <span class="shortcut-badge">Alt⇧S</span>
     </div>
@@ -65,24 +110,24 @@
 
     <!-- Target language selector -->
     <div class="field">
-      <label class="field-label" for="lang-select">Target Language</label>
+      <label class="field-label" for="lang-select">Ngôn ngữ dịch đích</label>
       <div class="select-wrapper">
         <select class="lang-select" id="lang-select">
-          <option value="vi">🇻🇳  Vietnamese</option>
-          <option value="en">🇺🇸  English</option>
-          <option value="zh-CN">🇨🇳  Chinese (Simplified)</option>
-          <option value="zh-TW">🇹🇼  Chinese (Traditional)</option>
-          <option value="ja">🇯🇵  Japanese</option>
-          <option value="ko">🇰🇷  Korean</option>
-          <option value="fr">🇫🇷  French</option>
-          <option value="de">🇩🇪  German</option>
-          <option value="es">🇪🇸  Spanish</option>
-          <option value="pt">🇧🇷  Portuguese</option>
-          <option value="ru">🇷🇺  Russian</option>
-          <option value="ar">🇸🇦  Arabic</option>
-          <option value="hi">🇮🇳  Hindi</option>
-          <option value="th">🇹🇭  Thai</option>
-          <option value="id">🇮🇩  Indonesian</option>
+          <option value="vi">🇻🇳  Tiếng Việt (Vietnamese)</option>
+          <option value="en">🇺🇸  Tiếng Anh (English)</option>
+          <option value="zh-CN">🇨🇳  Tiếng Trung giản thể (Chinese)</option>
+          <option value="zh-TW">🇹🇼  Tiếng Trung phồn thể</option>
+          <option value="ja">🇯🇵  Tiếng Nhật (Japanese)</option>
+          <option value="ko">🇰🇷  Tiếng Hàn (Korean)</option>
+          <option value="fr">🇫🇷  Tiếng Pháp (French)</option>
+          <option value="de">🇩🇪  Tiếng Đức (German)</option>
+          <option value="es">🇪🇸  Tiếng Tây Ban Nha (Spanish)</option>
+          <option value="pt">🇧🇷  Tiếng Bồ Đào Nha (Portuguese)</option>
+          <option value="ru">🇷🇺  Tiếng Nga (Russian)</option>
+          <option value="ar">🇸🇦  Tiếng Ả Rập (Arabic)</option>
+          <option value="hi">🇮🇳  Tiếng Hindi (Hindi)</option>
+          <option value="th">🇹🇭  Tiếng Thái (Thai)</option>
+          <option value="id">🇮🇩  Tiếng Indonesia</option>
         </select>
       </div>
     </div>
@@ -91,8 +136,8 @@
 
   <!-- Footer -->
   <div class="footer">
-    <span class="footer-tip">
-      Select any text → tooltip appears instantly
+    <span class="footer-tip" id="footer-tip">
+      Bôi đen chữ bất kỳ để bắt đầu tra từ & dịch câu
     </span>
   </div>
 

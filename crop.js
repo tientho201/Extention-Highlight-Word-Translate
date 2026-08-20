@@ -5,12 +5,12 @@
  *
  * Lifecycle
  * ─────────
- *  1. Load screenshot PNG from chrome.storage.session (RAM only).
+ *  1. Load screenshot PNG/JPEG from chrome.storage.session (RAM only).
  *  2. Delete from session storage IMMEDIATELY after reading → free RAM.
  *  3. Decode into ImageBitmap; draw onto a full-screen canvas at the
  *     screenshot's native (physical-pixel) resolution.
  *  4. User drags a selection rectangle → release → crop → OCR → translate.
- *  5. Show result in a floating tooltip; ESC / close-button → window.close().
+ *  5. Show result in a floating tooltip; ESC / close-button / shortcut → close.
  *
  * DPR handling
  * ────────────
@@ -66,7 +66,7 @@ let targetLang      = 'vi'; // Loaded from chrome.storage.local on init
 // ── Initialise ────────────────────────────────────────────────────────────
 
 (async function init() {
-  // Load user settings and screenshot in parallel — fastest possible start
+  // Load user settings and screenshot in parallel
   const [settings, session] = await Promise.all([
     chrome.storage.local.get('targetLang'),
     chrome.storage.session.get('limn_ocr_screenshot'),
@@ -81,24 +81,14 @@ let targetLang      = 'vi'; // Loaded from chrome.storage.local on init
     return;
   }
 
-  // ── Delete from session storage immediately ────────────────────────────
-  // The key was only needed to ferry the data URL from background.js to here.
-  // Removing it now frees RAM and ensures the raw screenshot is not
-  // accessible to any other code after this point.
+  // Delete from session storage immediately to free memory
   chrome.storage.session.remove('limn_ocr_screenshot');
 
-  // ── Decode screenshot → ImageBitmap ───────────────────────────────────
-  // createImageBitmap() is non-blocking and faster than new Image() + onload.
-  // The resulting bitmap is kept in `bgBitmap` for DPR-accurate cropping;
-  // it holds the screenshot at its native physical-pixel resolution.
+  // Decode screenshot → ImageBitmap
   const blob = await (await fetch(dataUrl)).blob();
   bgBitmap = await createImageBitmap(blob);
 
-  // ── Size the canvas ───────────────────────────────────────────────────
-  //   CSS layer   : window.innerWidth  × window.innerHeight  (logical px)
-  //   Internal res: bgBitmap.width     × bgBitmap.height     (physical px)
-  // Setting the CSS size fills the viewport; setting the internal size to
-  // match the screenshot ensures drawImage() is a 1:1 pixel copy.
+  // Size the canvas
   canvas.style.width  = window.innerWidth  + 'px';
   canvas.style.height = window.innerHeight + 'px';
   canvas.width  = bgBitmap.width;   // physical pixels
@@ -116,10 +106,27 @@ let targetLang      = 'vi'; // Loaded from chrome.storage.local on init
   canvas.addEventListener('mousemove', onMouseMove, { passive: true });
   canvas.addEventListener('mouseup',   onMouseUp);
 
+  // Handle window resize dynamically
+  window.addEventListener('resize', () => {
+    if (!bgBitmap) return;
+    canvas.style.width  = window.innerWidth  + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    scaleX = bgBitmap.width  / window.innerWidth;
+    scaleY = bgBitmap.height / window.innerHeight;
+    renderOverlay(null);
+  });
+
   // Event delegation on tooltip — avoids inline onclick (blocked by MV3 CSP)
   ttEl.addEventListener('mousedown', e => {
-    if (e.target.closest('.tt-close')) { e.stopPropagation(); window.close(); }
-    if (e.target.closest('.tt-copy'))  { e.stopPropagation(); doCopy(); }
+    if (e.target.closest('.tt-close')) {
+      e.stopPropagation();
+      hideTooltip();
+      renderOverlay(null);
+    }
+    if (e.target.closest('.tt-copy')) {
+      e.stopPropagation();
+      doCopy();
+    }
   });
 }());
 
@@ -131,16 +138,8 @@ let targetLang      = 'vi'; // Loaded from chrome.storage.local on init
  *  ① Draw the screenshot at full physical resolution (clean, no overlay).
  *  ② Lay a dark semi-transparent veil over everything.
  *  ③ If `sel` is provided: re-draw the ORIGINAL screenshot pixels for just
- *     the selected region — this restores full brightness without punching
- *     a transparent hole (which would reveal the black <body> behind).
+ *     the selected region — this restores full brightness.
  *  ④ Accent border + corner handles + dimension badge around the selection.
- *
- * Why re-draw instead of destination-out?
- * ────────────────────────────────────────
- * `destination-out` makes pixels fully transparent, so the canvas background
- * colour (black) shows through — the user sees nothing.  Re-drawing from
- * `bgBitmap` keeps the original image data and produces a true "spotlight"
- * effect where the selection is bright and the rest is dimmed.
  *
  * @param {{ x, y, w, h }|null} sel  Selection rect in CSS (logical) pixels.
  */
@@ -163,8 +162,6 @@ function renderOverlay(sel) {
   const ph = sel.h * scaleY;
 
   // ③ Restore the original (un-dimmed) screenshot pixels inside the selection.
-  // Source and destination rectangles are identical — a straight pixel copy
-  // from bgBitmap over the veil layer, producing a bright "spotlight" window.
   ctx.drawImage(bgBitmap, px, py, pw, ph, px, py, pw, ph);
 
   // ④ Accent border
@@ -182,7 +179,7 @@ function renderOverlay(sel) {
     ctx.fillRect(cx - hs / 2, cy - hs / 2, hs, hs);
   }
 
-  // Dimension badge (show logical CSS px — more meaningful to the user)
+  // Dimension badge (show logical CSS px)
   const lbl  = `${Math.round(sel.w)} × ${Math.round(sel.h)}`;
   const lblY = py > 22 * scaleY ? py - 6 * scaleY : py + ph + 16 * scaleY;
   ctx.font      = `bold ${Math.round(11 * scaleX)}px system-ui, sans-serif`;
@@ -232,7 +229,6 @@ async function runOCR(sel, mx, my) {
 
   try {
     // ── 1. Crop the CLEAN screenshot (bgBitmap, no overlay) ────────────────
-    // Convert CSS-pixel selection to physical pixels using measured scale.
     const px = Math.max(0, Math.round(sel.x * scaleX));
     const py = Math.max(0, Math.round(sel.y * scaleY));
     const pw = Math.min(Math.round(sel.w * scaleX), canvas.width  - px);
@@ -254,9 +250,7 @@ async function runOCR(sel, mx, my) {
     }
     const base64Image = 'data:image/png;base64,' + btoa(bin);
 
-    // ── 2. OCR with fallback language chain ────────────────────────────────
-    // Try CJK languages first — primary use-case for this extension.
-    // Extra API calls are made only when the previous attempt returns nothing.
+    // ── 2. OCR with intelligent language fallback ──────────────────────────
     const ocrText = await ocrWithFallback(base64Image);
     if (!ocrText) throw new Error('Không nhận dạng được văn bản trong vùng đã chọn.');
 
@@ -279,22 +273,34 @@ async function runOCR(sel, mx, my) {
 // ── OCR helpers ───────────────────────────────────────────────────────────
 
 /**
- * Try OCR language candidates in order; return the first non-empty result.
- * CJK languages are tried first because this extension primarily serves
- * Chinese/Japanese/Korean → Vietnamese readers.
+ * Try OCR language candidates intelligently.
+ * Prioritizes Latin/English when appropriate to avoid noisy CJK output on English text.
  */
 async function ocrWithFallback(base64Image) {
-  for (const lang of ['chs', 'cht', 'jpn', 'kor', 'eng']) {
-    const text = await fetchOCR(base64Image, lang);
-    if (text) return text;
+  const isCJK = text => /[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u30ff\uac00-\ud7af]/.test(text);
+
+  // 1. Try 'eng' first for Latin text recognition
+  const engText = await fetchOCR(base64Image, 'eng');
+  if (engText && !isCJK(engText)) {
+    const latinWords = (engText.match(/[a-zA-Z0-9\u00C0-\u024F\u1EA0-\u1EF9]+/g) || []).length;
+    if (latinWords > 0) {
+      return engText;
+    }
   }
-  return null;
+
+  // 2. Try CJK languages in order
+  for (const lang of ['chs', 'cht', 'jpn', 'kor']) {
+    const text = await fetchOCR(base64Image, lang);
+    if (text && isCJK(text)) return text;
+    if (text && !engText) return text;
+  }
+
+  return engText || null;
 }
 
 /**
  * Call OCR.space for one language.
  * Returns the trimmed text, or null if nothing was recognised.
- * Only throws for hard errors (HTTP failure, API error flag).
  */
 async function fetchOCR(base64Image, language) {
   const form = new FormData();
@@ -491,15 +497,17 @@ function doCopy() {
   };
 
   const execFallback = () => {
-    const ta = document.createElement('textarea');
-    ta.value = pendingCopyText;
-    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
-    onSuccess();
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = pendingCopyText;
+      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      if (ok) onSuccess();
+    } catch (_) {}
   };
 
   if (navigator.clipboard?.writeText) {
