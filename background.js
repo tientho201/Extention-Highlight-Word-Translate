@@ -318,7 +318,12 @@ async function cropImage(dataUrl, logicalRect, viewport) {
 
 // ── OCR.space API ─────────────────────────────────────────────
 
-const OCR_API_KEY = "K86041711488957";
+const DEFAULT_OCR_API_KEY = "K86041711488957";
+
+async function getOCRApiKey() {
+  const data = await chrome.storage.local.get("ocrApiKey");
+  return data.ocrApiKey?.trim() || DEFAULT_OCR_API_KEY;
+}
 
 /**
  * Submit a cropped image to OCR.space for one specific language model.
@@ -328,6 +333,7 @@ const OCR_API_KEY = "K86041711488957";
  * @returns {Promise<string|null>} Trimmed text, or null if nothing recognised
  */
 async function fetchOCR(base64Image, language) {
+  const apiKey = await getOCRApiKey();
   const form = new FormData();
   form.append("base64Image",           base64Image);
   form.append("language",              language);
@@ -339,7 +345,7 @@ async function fetchOCR(base64Image, language) {
 
   const res = await fetch("https://api.ocr.space/parse/image", {
     method:  "POST",
-    headers: { apikey: OCR_API_KEY },
+    headers: { apikey: apiKey },
     body:    form,
   });
 

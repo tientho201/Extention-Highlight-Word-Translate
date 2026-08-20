@@ -370,6 +370,65 @@ body {
   letter-spacing: 0.06em;
 }
 
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.field-link {
+  font-size: 11px;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+  transition: opacity 150ms;
+}
+
+.field-link:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+.text-input {
+  width: 100%;
+  height: var(--select-h);
+  padding: 0 12px;
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  outline: none;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+
+.text-input:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.text-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+.text-input::placeholder {
+  color: var(--text-muted);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 11px;
+}
+
+.field-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.35;
+  transition: color 200ms;
+}
+
+.field-hint.saved {
+  color: var(--green);
+}
+
 .select-wrapper {
   position: relative;
 }

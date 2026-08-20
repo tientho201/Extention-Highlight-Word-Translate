@@ -43,7 +43,8 @@ const SVG_CHECK = [
 
 // ── OCR API ───────────────────────────────────────────────────────────────
 
-const OCR_API_KEY = 'K86041711488957';
+const DEFAULT_OCR_API_KEY = 'K86041711488957';
+let ocrApiKey = DEFAULT_OCR_API_KEY;
 
 // ── DOM references ────────────────────────────────────────────────────────
 
@@ -68,11 +69,12 @@ let targetLang      = 'vi'; // Loaded from chrome.storage.local on init
 (async function init() {
   // Load user settings and screenshot in parallel
   const [settings, session] = await Promise.all([
-    chrome.storage.local.get('targetLang'),
+    chrome.storage.local.get(['targetLang', 'ocrApiKey']),
     chrome.storage.session.get('limn_ocr_screenshot'),
   ]);
 
   targetLang = settings.targetLang ?? 'vi';
+  ocrApiKey  = settings.ocrApiKey?.trim() || DEFAULT_OCR_API_KEY;
   const dataUrl = session.limn_ocr_screenshot;
 
   if (!dataUrl) {
@@ -313,7 +315,7 @@ async function fetchOCR(base64Image, language) {
 
   const res = await fetch('https://api.ocr.space/parse/image', {
     method:  'POST',
-    headers: { apikey: OCR_API_KEY },
+    headers: { apikey: ocrApiKey },
     body:    form,
   });
 

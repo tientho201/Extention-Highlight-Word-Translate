@@ -866,8 +866,8 @@ function matchesCustomShortcut(e, shortcut) {
 // ── Keyboard shortcuts ────────────────────────────────────────
 
 document.addEventListener("keydown", e => {
-  // 1. Custom shortcut for translating selected text (active in "shortcut" or "auto" mode)
-  if (translateMode !== "off" && matchesCustomShortcut(e, customShortcut)) {
+  // 1. Custom shortcut for translating selected text (active ONLY when translateMode === "shortcut")
+  if (translateMode === "shortcut" && matchesCustomShortcut(e, customShortcut)) {
     const selection = window.getSelection();
     const rawText = selection?.toString().trim();
     if (rawText && rawText.length > 0) {

@@ -75,6 +75,8 @@ const shortcutHint        = document.getElementById('shortcut-hint');
 const shortcutRecordingMsg= document.getElementById('shortcut-recording-msg');
 const btnResetShortcut    = document.getElementById('btn-reset-shortcut');
 const selectEl            = document.getElementById('lang-select');
+const ocrKeyInput         = document.getElementById('ocr-api-key');
+const ocrKeyHint          = document.getElementById('ocr-key-hint');
 const badgeEl             = document.getElementById('status-badge');
 const statusTxt           = document.getElementById('status-text');
 const footerTip           = document.getElementById('footer-tip');
@@ -83,13 +85,14 @@ const presetChips         = document.querySelectorAll('.preset-chip');
 let currentMode     = 'auto'; // 'auto' | 'shortcut' | 'off'
 let currentShortcut = DEFAULT_SHORTCUT;
 let isRecording     = false;
+let ocrHintTimeout  = null;
 
 // Temp tracker for modifier keys while recording
 let heldModifiers = { ctrlKey: false, altKey: false, shiftKey: false, metaKey: false };
 
 // ── Initialize & Load State ───────────────────────────────
 
-chrome.storage.local.get(['translateMode', 'enabled', 'customShortcut', 'targetLang'], data => {
+chrome.storage.local.get(['translateMode', 'enabled', 'customShortcut', 'targetLang', 'ocrApiKey'], data => {
   if (data.translateMode) {
     currentMode = data.translateMode;
   } else if (data.enabled === false) {
@@ -100,6 +103,9 @@ chrome.storage.local.get(['translateMode', 'enabled', 'customShortcut', 'targetL
 
   currentShortcut = data.customShortcut ?? DEFAULT_SHORTCUT;
   selectEl.value   = data.targetLang ?? 'vi';
+  if (data.ocrApiKey) {
+    ocrKeyInput.value = data.ocrApiKey;
+  }
 
   if (isMac) {
     presetChips.forEach(chip => {
@@ -363,4 +369,19 @@ document.addEventListener('click', e => {
 
 selectEl.addEventListener('change', () => {
   chrome.storage.local.set({ targetLang: selectEl.value });
+});
+
+// ── OCR API Key Input ─────────────────────────────────────
+
+ocrKeyInput.addEventListener('input', () => {
+  const key = ocrKeyInput.value.trim();
+  chrome.storage.local.set({ ocrApiKey: key });
+
+  ocrKeyHint.textContent = key ? '✓ Đã lưu API Key riêng thành công!' : 'Đã xoá key riêng (sử dụng key mặc định)';
+  ocrKeyHint.classList.add('saved');
+  clearTimeout(ocrHintTimeout);
+  ocrHintTimeout = setTimeout(() => {
+    ocrKeyHint.textContent = 'Dùng key riêng để có 500 lượt OCR/ngày không lo nghẽn';
+    ocrKeyHint.classList.remove('saved');
+  }, 2500);
 });
