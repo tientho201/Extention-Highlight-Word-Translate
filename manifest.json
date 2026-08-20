@@ -3,7 +3,7 @@
   "name": "Highlight Word Translate",
   "version": "1.2.0",
   "description": "Ultra-low latency text translation + Screen OCR — select text or capture any screen region.",
-  "permissions": ["storage", "tabs", "activeTab", "clipboardWrite"],
+  "permissions": ["storage", "tabs", "activeTab", "scripting", "clipboardWrite"],
   "host_permissions": [
     "<all_urls>",
     "https://translate.googleapis.com/*",

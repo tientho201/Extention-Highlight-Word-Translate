@@ -445,8 +445,16 @@
 /* Full-screen fixed container — sits just below the translate tooltip */
 #limn-ocr-overlay {
   all:            initial !important;
+  display:        block !important;
+  visibility:     visible !important;
+  opacity:        1 !important;
   position:       fixed !important;
-  inset:          0 !important;
+  top:            0 !important;
+  left:           0 !important;
+  right:          0 !important;
+  bottom:         0 !important;
+  width:          100vw !important;
+  height:         100vh !important;
   z-index:        2147483646 !important;
   cursor:         crosshair !important;
   -webkit-user-select: none !important;
@@ -465,7 +473,8 @@
   all:      initial !important;
   display:  block !important;
   position: absolute !important;
-  inset:    0 !important;
+  top:      0 !important;
+  left:     0 !important;
   width:    100% !important;
   height:   100% !important;
 }

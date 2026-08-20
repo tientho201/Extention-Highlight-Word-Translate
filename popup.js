@@ -4,9 +4,10 @@
  * Responsibilities:
  *  - Manage 2 mutually exclusive translation modes: Auto Translate vs Shortcut Translate.
  *  - Interactive shortcut recorders for 3 features:
- *      1. Text Selection Translate (default: Alt+T)
- *      2. Screen OCR Overlay       (default: Ctrl+Shift+X)
- *      3. Screenshot OCR Full Tab  (default: Alt+Shift+S)
+ *      1. Text Selection Translate (default: Alt+T / Option+T)
+ *      2. Screen OCR Overlay       (default: Ctrl+Shift+X / Cmd+Shift+X)
+ *      3. Screenshot OCR Full Tab  (default: Alt+Shift+S / Option+Shift+S)
+ *  - macOS / Windows native modifier handling & keycode extraction.
  *  - Duplicate / Conflict validation:
  *      If a shortcut conflicts with an already assigned shortcut, display a red error message
  *      and automatically revert to the feature's default shortcut.
@@ -17,6 +18,43 @@
  */
 
 'use strict';
+
+// ── OS Detection ──────────────────────────────────────────
+
+const isMac = /Mac/i.test(navigator.platform || '') ||
+              /Mac/i.test(navigator.userAgent || '') ||
+              /Mac/i.test(navigator.userAgentData?.platform || '');
+
+function formatKeyLabel(name) {
+  if (!isMac) return name;
+  const map = {
+    'Win': 'Cmd ⌘',
+    'Meta': 'Cmd ⌘',
+    'Cmd': 'Cmd ⌘',
+    'Alt': 'Option ⌥',
+    'Option': 'Option ⌥',
+    'Ctrl': 'Ctrl ⌃',
+    'Control': 'Ctrl ⌃',
+    'Shift': 'Shift ⇧',
+  };
+  return map[name] ?? name;
+}
+
+function getModifierParts(held) {
+  const parts = [];
+  if (isMac) {
+    if (held.metaKey)  parts.push('Cmd');
+    if (held.altKey)   parts.push('Option');
+    if (held.ctrlKey)  parts.push('Ctrl');
+    if (held.shiftKey) parts.push('Shift');
+  } else {
+    if (held.ctrlKey)  parts.push('Ctrl');
+    if (held.altKey)   parts.push('Alt');
+    if (held.shiftKey) parts.push('Shift');
+    if (held.metaKey)  parts.push('Win');
+  }
+  return parts;
+}
 
 // ── Default Shortcut Definitions ──────────────────────────
 
@@ -29,17 +67,17 @@ const DEFAULTS = {
     metaKey: false,
     code: 'KeyT',
     key: 'T',
-    label: 'Alt+T',
+    label: isMac ? 'Option+T' : 'Alt+T',
   },
   ocrOverlay: {
     isModifierOnly: false,
     altKey: false,
-    ctrlKey: true,
+    ctrlKey: isMac ? false : true,
     shiftKey: true,
-    metaKey: false,
+    metaKey: isMac ? true : false,
     code: 'KeyX',
     key: 'X',
-    label: 'Ctrl+Shift+X',
+    label: isMac ? 'Cmd+Shift+X' : 'Ctrl+Shift+X',
   },
   ocrScreenshot: {
     isModifierOnly: false,
@@ -49,7 +87,7 @@ const DEFAULTS = {
     metaKey: false,
     code: 'KeyS',
     key: 'S',
-    label: 'Alt+Shift+S',
+    label: isMac ? 'Option+Shift+S' : 'Alt+Shift+S',
   },
 };
 
@@ -65,7 +103,48 @@ const FEATURE_NAMES = {
   ocrScreenshot: 'Screenshot OCR',
 };
 
-const PRESET_MAP = {
+const PRESET_MAP = isMac ? {
+  'Control+Option': {
+    isModifierOnly: true,
+    ctrlKey: true,
+    altKey: true,
+    shiftKey: false,
+    metaKey: false,
+    code: null,
+    key: null,
+    label: 'Control+Option',
+  },
+  'Cmd+Option': {
+    isModifierOnly: true,
+    ctrlKey: false,
+    altKey: true,
+    shiftKey: false,
+    metaKey: true,
+    code: null,
+    key: null,
+    label: 'Cmd+Option',
+  },
+  'Option+T': {
+    isModifierOnly: false,
+    ctrlKey: false,
+    altKey: true,
+    shiftKey: false,
+    metaKey: false,
+    code: 'KeyT',
+    key: 'T',
+    label: 'Option+T',
+  },
+  'Control+Q': {
+    isModifierOnly: false,
+    ctrlKey: true,
+    altKey: false,
+    shiftKey: false,
+    metaKey: false,
+    code: 'KeyQ',
+    key: 'Q',
+    label: 'Control+Q',
+  },
+} : {
   'Ctrl+Alt': {
     isModifierOnly: true,
     ctrlKey: true,
@@ -107,20 +186,6 @@ const PRESET_MAP = {
     label: 'Ctrl+Q',
   },
 };
-
-const isMac = /Mac|iPhone|iPod|iPad/i.test(navigator.userAgent || navigator.platform);
-
-function formatKeyLabel(name) {
-  if (!isMac) return name;
-  const map = {
-    'Win': 'Cmd ⌘',
-    'Meta': 'Cmd ⌘',
-    'Alt': 'Option ⌥',
-    'Ctrl': 'Ctrl ⌃',
-    'Shift': 'Shift ⇧',
-  };
-  return map[name] ?? name;
-}
 
 // ── State ─────────────────────────────────────────────────
 
@@ -201,13 +266,16 @@ chrome.storage.local.get([
   selectEl.value = data.targetLang ?? 'vi';
   if (data.ocrApiKey) ocrKeyInput.value = data.ocrApiKey;
 
-  if (isMac) {
-    presetChips.forEach(chip => {
-      const presetName = chip.dataset.preset;
-      const parts = presetName.split('+');
+  // Setup presets for the current OS
+  const presetKeys = Object.keys(PRESET_MAP);
+  presetChips.forEach((chip, idx) => {
+    if (presetKeys[idx]) {
+      const pKey = presetKeys[idx];
+      chip.dataset.preset = pKey;
+      const parts = pKey.split('+');
       chip.innerHTML = parts.map(p => `<kbd>${formatKeyLabel(p.trim())}</kbd>`).join('+');
-    });
-  }
+    }
+  });
 
   updateToggles(currentMode);
   renderAllShortcuts();
@@ -256,7 +324,7 @@ function updateBadge(mode, shortcut) {
 
   const displayLabel = shortcut?.label
     ? shortcut.label.split('+').map(p => formatKeyLabel(p.trim())).join('+')
-    : (isMac ? 'Option ⌥+T' : 'Alt+T');
+    : DEFAULTS.text.label;
 
   if (mode === 'auto') {
     badgeEl.classList.add('active-auto');
@@ -450,12 +518,7 @@ document.addEventListener('keydown', e => {
   };
 
   const isModifierOnly = ['Control', 'Alt', 'Shift', 'Meta', 'OS'].includes(e.key);
-
-  const modParts = [];
-  if (heldModifiers.ctrlKey)  modParts.push('Ctrl');
-  if (heldModifiers.altKey)   modParts.push('Alt');
-  if (heldModifiers.shiftKey) modParts.push('Shift');
-  if (heldModifiers.metaKey)  modParts.push('Win');
+  const modParts = getModifierParts(heldModifiers);
 
   const suffix = getElementSuffix(target);
   const displayEl = document.getElementById(`display-${suffix}`);
@@ -476,14 +539,16 @@ document.addEventListener('keydown', e => {
   const isFunctionKey = /^F[1-9]|F1[0-2]$/.test(e.key);
 
   if (!hasModifier && !isFunctionKey) {
-    if (hintEl) hintEl.textContent = 'Cần phím bổ trợ (Alt/Ctrl/Shift)!';
+    if (hintEl) hintEl.textContent = 'Cần phím bổ trợ (Alt/Ctrl/Shift/Cmd)!';
     return;
   }
 
+  // Extract letter/key name safely on both Mac (Option+Key) and Windows
   let keyName = e.key.toUpperCase();
-  if (e.code.startsWith('Key'))   keyName = e.code.slice(3);
-  if (e.code.startsWith('Digit')) keyName = e.code.slice(5);
-  if (e.code === 'Space')         keyName = 'Space';
+  if (e.code.startsWith('Key'))   keyName = e.code.slice(3).toUpperCase();
+  else if (e.code.startsWith('Digit')) keyName = e.code.slice(5);
+  else if (e.code.startsWith('Numpad')) keyName = 'Num' + e.code.slice(6);
+  else if (e.code === 'Space')    keyName = 'Space';
 
   modParts.push(keyName);
   const label = modParts.join('+');
@@ -509,11 +574,7 @@ document.addEventListener('keyup', e => {
   if (!isModifierOnly) return;
 
   const target = activeRecordingTarget;
-  const modParts = [];
-  if (heldModifiers.ctrlKey)  modParts.push('Ctrl');
-  if (heldModifiers.altKey)   modParts.push('Alt');
-  if (heldModifiers.shiftKey) modParts.push('Shift');
-  if (heldModifiers.metaKey)  modParts.push('Win');
+  const modParts = getModifierParts(heldModifiers);
 
   if (modParts.length >= 2) {
     const label = modParts.join('+');
@@ -545,12 +606,25 @@ if (btnTriggerOverlay) {
     e.stopPropagation();
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab?.id) {
-        chrome.tabs.sendMessage(tab.id, { type: 'TRIGGER_OCR_OVERLAY' });
+      if (tab?.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('edge://')) {
+        try {
+          await chrome.tabs.sendMessage(tab.id, { type: 'TRIGGER_OCR_OVERLAY' });
+        } catch (_) {
+          // Fallback: inject content script on the fly if not already loaded
+          try {
+            await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ['content.css'] });
+            await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
+            await new Promise(r => setTimeout(r, 80));
+            await chrome.tabs.sendMessage(tab.id, { type: 'TRIGGER_OCR_OVERLAY' });
+          } catch (injErr) {
+            console.warn('Script injection failed:', injErr);
+          }
+        }
       }
-      window.close();
     } catch (err) {
       console.error('Trigger OCR overlay failed:', err);
+    } finally {
+      setTimeout(() => window.close(), 60);
     }
   });
 }

@@ -19,6 +19,10 @@
 const L1_CACHE    = new Map();
 const MAX_L1_SIZE = 200;
 
+const isMac = /Mac/i.test(navigator.platform || '') ||
+              /Mac/i.test(navigator.userAgent || '') ||
+              /Mac/i.test(navigator.userAgentData?.platform || '');
+
 const DEFAULT_TEXT_SHORTCUT = {
   isModifierOnly: false,
   altKey: true,
@@ -27,18 +31,18 @@ const DEFAULT_TEXT_SHORTCUT = {
   metaKey: false,
   code: "KeyT",
   key: "T",
-  label: "Alt+T",
+  label: isMac ? "Option+T" : "Alt+T",
 };
 
 const DEFAULT_OCR_OVERLAY_SHORTCUT = {
   isModifierOnly: false,
   altKey: false,
-  ctrlKey: true,
+  ctrlKey: isMac ? false : true,
   shiftKey: true,
-  metaKey: false,
+  metaKey: isMac ? true : false,
   code: "KeyX",
   key: "X",
-  label: "Ctrl+Shift+X",
+  label: isMac ? "Cmd+Shift+X" : "Ctrl+Shift+X",
 };
 
 const DEFAULT_OCR_SCREENSHOT_SHORTCUT = {
@@ -49,7 +53,7 @@ const DEFAULT_OCR_SCREENSHOT_SHORTCUT = {
   metaKey: false,
   code: "KeyS",
   key: "S",
-  label: "Alt+Shift+S",
+  label: isMac ? "Option+Shift+S" : "Alt+Shift+S",
 };
 
 let translateMode          = "auto"; // "auto" | "shortcut" | "off"
@@ -639,14 +643,13 @@ function activateOCRCapture() {
   ocrOverlay.id = "limn-ocr-overlay";
 
   // Canvas — draws the dimming veil + selection rectangle
-  ocrCanvas       = document.createElement("canvas");
-  ocrCanvas.id    = "limn-ocr-canvas";
-  ocrCanvas.width  = window.innerWidth;
-  ocrCanvas.height = window.innerHeight;
-  ocrCtx = ocrCanvas.getContext("2d");
+  ocrCanvas        = document.createElement("canvas");
+  ocrCanvas.id     = "limn-ocr-canvas";
+  ocrCanvas.width  = Math.max(window.innerWidth || 0, document.documentElement?.clientWidth || 0, 1920);
+  ocrCanvas.height = Math.max(window.innerHeight || 0, document.documentElement?.clientHeight || 0, 1080);
+  ocrCtx           = ocrCanvas.getContext("2d");
 
   // Hint bar at the top
-  const isMac = /Mac|iPhone|iPod|iPad/i.test(navigator.userAgent || navigator.platform);
   const hint = document.createElement("div");
   hint.id = "limn-ocr-hint";
   hint.innerHTML =
@@ -655,7 +658,7 @@ function activateOCRCapture() {
     " hoặc <kbd>ESC</kbd> để huỷ";
 
   ocrOverlay.append(ocrCanvas, hint);
-  (document.body ?? document.documentElement).appendChild(ocrOverlay);
+  (document.documentElement || document.body).appendChild(ocrOverlay);
 
   // Render initial dark veil (no selection yet)
   drawOverlayFrame(null);
@@ -873,8 +876,6 @@ function showOCRResult(ocrText, response) {
   } else {
     currentCopyText = (ocrText ? ocrText + "\n" : "") + translated;
   }
-}
-
 function matchesCustomShortcut(e, shortcut) {
   if (!shortcut) return false;
 
@@ -888,15 +889,21 @@ function matchesCustomShortcut(e, shortcut) {
   if (Boolean(shortcut.shiftKey) !== shiftNow) return false;
   if (Boolean(shortcut.metaKey)  !== metaNow)  return false;
 
-  // If this is a modifier-only shortcut (e.g. Ctrl+Alt or Ctrl+Win)
+  // If this is a modifier-only shortcut (e.g. Ctrl+Alt, Ctrl+Win, Cmd+Option)
   if (shortcut.isModifierOnly) {
     const modifierKeys = ["Control", "Alt", "Shift", "Meta", "OS"];
     return modifierKeys.includes(e.key);
   }
 
-  // Normal combo with key
+  // Normal combo with key: check physical layout-independent code first
   if (shortcut.code && e.code === shortcut.code) return true;
-  if (shortcut.key && e.key.toUpperCase() === shortcut.key.toUpperCase()) return true;
+
+  // Check key name (e.g. "T", "X", "S", "Q")
+  if (shortcut.key) {
+    if (e.code && e.code.startsWith("Key") && e.code.slice(3).toUpperCase() === shortcut.key.toUpperCase()) return true;
+    if (e.key && e.key.toUpperCase() === shortcut.key.toUpperCase()) return true;
+  }
+
   return false;
 }
 
@@ -968,13 +975,15 @@ document.addEventListener("keydown", e => {
   }
 }, { capture: true });
 
-// Listen for external trigger from popup
-chrome.runtime.onMessage.addListener(msg => {
+// Listen for external trigger from popup or background
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === "TRIGGER_OCR_OVERLAY") {
     if (ocrOverlay) {
       deactivateOCRCapture();
     } else {
       activateOCRCapture();
     }
+    sendResponse({ ok: true, active: Boolean(ocrOverlay) });
+    return true;
   }
 });
