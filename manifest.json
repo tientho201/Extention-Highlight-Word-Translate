@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Highlight Word Translate",
+  "version": "1.2.0",
+  "description": "Ultra-low latency text translation + Screen OCR — select text or capture any screen region.",
+  "permissions": ["storage", "tabs", "activeTab", "clipboardWrite"],
+  "host_permissions": [
+    "https://translate.googleapis.com/*",
+    "https://api.ocr.space/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "commands": {
+    "ocr-screenshot": {
+      "suggested_key": { "default": "Alt+Shift+S" },
+      "description": "Chụp màn hình toàn trang và OCR dịch"
+    }
+  }
+}

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Limn Translate</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-icon">🌐</div>
+    <div>
+      <div class="header-title">Highlight Translate</div>
+      <div class="header-sub">Select text on any page to translate</div>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- Enable / Disable toggle -->
+    <div class="row">
+      <div class="row-label">
+        <span>Auto Translate</span>
+        <span>Translate on text selection</span>
+      </div>
+      <label class="toggle" aria-label="Enable auto translate">
+        <input type="checkbox" id="toggle-enabled" />
+        <div class="toggle-track">
+          <div class="toggle-thumb"></div>
+        </div>
+      </label>
+    </div>
+
+    <!-- Status badge -->
+    <div class="status-badge" id="status-badge">
+      <div class="status-dot"></div>
+      <span id="status-text">Disabled — toggle on to activate</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- OCR shortcut — overlay (Ctrl+Shift+X) -->
+    <div class="row">
+      <div class="row-label">
+        <span>Screen OCR Translate</span>
+        <span>Press <strong>Ctrl+Shift+X</strong> on any page</span>
+      </div>
+      <span class="shortcut-badge">Ctrl⇧X</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- OCR shortcut — full screenshot (Alt+Shift+S) -->
+    <div class="row">
+      <div class="row-label">
+        <span>Screenshot OCR Translate</span>
+        <span>Press <strong>Alt+Shift+S</strong> — opens crop tab</span>
+      </div>
+      <span class="shortcut-badge">Alt⇧S</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Target language selector -->
+    <div class="field">
+      <label class="field-label" for="lang-select">Target Language</label>
+      <div class="select-wrapper">
+        <select class="lang-select" id="lang-select">
+          <option value="vi">🇻🇳  Vietnamese</option>
+          <option value="en">🇺🇸  English</option>
+          <option value="zh-CN">🇨🇳  Chinese (Simplified)</option>
+          <option value="zh-TW">🇹🇼  Chinese (Traditional)</option>
+          <option value="ja">🇯🇵  Japanese</option>
+          <option value="ko">🇰🇷  Korean</option>
+          <option value="fr">🇫🇷  French</option>
+          <option value="de">🇩🇪  German</option>
+          <option value="es">🇪🇸  Spanish</option>
+          <option value="pt">🇧🇷  Portuguese</option>
+          <option value="ru">🇷🇺  Russian</option>
+          <option value="ar">🇸🇦  Arabic</option>
+          <option value="hi">🇮🇳  Hindi</option>
+          <option value="th">🇹🇭  Thai</option>
+          <option value="id">🇮🇩  Indonesian</option>
+        </select>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <span class="footer-tip">
+      Select any text → tooltip appears instantly
+    </span>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OCR Capture — Limn</title>
+  <style>
+    /* ── Design tokens (Catppuccin Mocha — matches content.css) ── */
+    :root {
+      --bg:         #1e1e2e;
+      --bg-hdr:     #181825;
+      --border:     rgba(255,255,255,0.08);
+      --text:       #cdd6f4;
+      --muted:      #6c7086;
+      --accent:     #89b4fa;
+      --green:      #a6e3a1;
+      --error:      #f38ba8;
+      --radius:     10px;
+      --shadow:     0 8px 32px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+      --skel-base:  #313244;
+      --skel-shine: #45475a;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #000;
+      cursor: crosshair;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* Full-screen canvas — CSS size set by JS to match viewport */
+    #crop-canvas {
+      display: block;
+      position: fixed;
+      top: 0; left: 0;
+    }
+
+    /* Instruction bar */
+    #hint {
+      position: fixed;
+      top: 18px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(24,24,37,0.92);
+      color: var(--text);
+      padding: 8px 18px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(137,180,250,0.35);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 10;
+      animation: fade-in 120ms ease forwards;
+    }
+
+    #hint kbd {
+      display: inline-block;
+      background: rgba(137,180,250,0.12);
+      border: 1px solid rgba(137,180,250,0.4);
+      border-bottom: 2px solid rgba(137,180,250,0.5);
+      border-radius: 5px;
+      padding: 1px 7px;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    /* ── Result tooltip ── */
+    #result-tt {
+      position: fixed;
+      display: none;
+      z-index: 100;
+      width: 340px;
+      max-width: calc(100vw - 24px);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      animation: pop-in 140ms ease forwards;
+    }
+
+    .tt-hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      background: var(--bg-hdr);
+      border-bottom: 1px solid var(--border);
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+
+    .tt-hdr-l, .tt-hdr-r {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .tt-badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #f5c2e7;
+      padding: 0 2px;
+    }
+    .tt-badge.err { color: var(--error); }
+
+    .tt-btn {
+      all: unset;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px; height: 22px;
+      border-radius: 4px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 120ms, color 120ms;
+    }
+    .tt-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+    .tt-btn.tt-copy.copied { color: var(--green); background: rgba(166,227,161,0.1); }
+
+    .tt-body {
+      padding: 10px 12px;
+      overflow-y: auto;
+      max-height: 360px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--muted) transparent;
+    }
+    .tt-body::-webkit-scrollbar { width: 4px; }
+    .tt-body::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
+
+    /* OCR source strip */
+    .tt-ocr-src {
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+      padding-bottom: 9px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+    .tt-ocr-lbl {
+      display: inline-flex;
+      align-items: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+      background: rgba(137,180,250,0.18);
+      color: var(--accent);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(137,180,250,0.3);
+    }
+    .tt-ocr-txt {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.55;
+      word-break: break-word;
+      max-height: 72px;
+      overflow-y: auto;
+    }
+
+    /* Translation text */
+    .tt-text {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text);
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    /* Pinyin row */
+    .tt-pinyin {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .tt-pinyin-lbl {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .tt-pinyin-val {
+      font-size: 12px;
+      color: var(--accent);
+      letter-spacing: 0.03em;
+      word-break: break-all;
+    }
+
+    /* Dictionary / SEARCH_RESULT */
+    .tt-main-trans {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 8px;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+    .tt-dict-box {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .tt-pos-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--green);
+      background: rgba(166, 227, 161, 0.12);
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-bottom: 3px;
+      text-transform: lowercase;
+    }
+    .tt-single-def {
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .tt-pinyin-hdr {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--green);
+      letter-spacing: 0.06em;
+      margin-bottom: 3px;
+    }
+    .tt-entry { padding: 2px 0; }
+    .tt-defs { padding-left: 16px; list-style: decimal; margin: 0; }
+    .tt-defs li {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text);
+      word-break: break-word;
+      padding: 1px 0;
+    }
+    .tt-sep { height: 1px; background: var(--border); margin: 7px 0; }
+
+    /* Error */
+    .tt-err { font-size: 13px; color: var(--error); }
+
+    /* Skeleton loader */
+    .tt-skel { display: flex; flex-direction: column; gap: 8px; }
+    .tt-skel-l {
+      display: block;
+      height: 12px;
+      border-radius: 6px;
+      background: linear-gradient(
+        90deg,
+        var(--skel-base) 25%,
+        var(--skel-shine) 50%,
+        var(--skel-base) 75%
+      );
+      background-size: 200% 100%;
+      animation: shimmer 1.4s ease-in-out infinite;
+    }
+    .tt-skel-l.short { width: 60%; }
+
+    /* Animations */
+    @keyframes shimmer {
+      0%   { background-position: 200% center; }
+      100% { background-position: -200% center; }
+    }
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    @keyframes pop-in {
+      from { opacity: 0; transform: translateY(4px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0)   scale(1);    }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="crop-canvas"></canvas>
+  <div id="hint">
+    Kéo để chọn vùng OCR &nbsp;·&nbsp;
+    <kbd>Alt+Shift+S</kbd> hoặc <kbd>ESC</kbd> để đóng
+  </div>
+  <div id="result-tt"></div>
+  <script src="crop.js"></script>
+</body>
+</html>
